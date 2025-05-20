@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 from storage import get_storage
 
 # Set storage type here
@@ -18,38 +19,64 @@ def init_state():
 
 init_state()
 
-st.title("AI Tool Usage Logger")
+# Create tabs for data entry and visualization
+tab1, tab2 = st.tabs(["New Entry", "Analytics"])
 
-# Reactive input fields
-name = st.text_input("Employee Name")
-manager = st.text_input("Manager's Name")
-ai_tool = st.selectbox("AI Tool", ["ChatGPT", "GitHub Copilot"])
-purpose = st.selectbox("Purpose", ["Development", "Writing", "Other"])
-duration = st.number_input("Duration (minutes)", min_value=0)
-result = st.text_input("Result/Outcome")
-notes = st.text_area("Notes (optional)")
+with tab1:
+    st.title("AI Tool Usage Logger")
+    
+    # Reactive input fields
+    name = st.text_input("Employee Name")
+    manager = st.text_input("Manager's Name")
+    ai_tool = st.selectbox("AI Tool", ["ChatGPT", "GitHub Copilot"])
+    purpose = st.selectbox("Purpose", ["Development", "Writing", "Other"])
+    duration = st.number_input("Duration (minutes)", min_value=0)
+    result = st.text_input("Result/Outcome")
+    notes = st.text_area("Notes (optional)")
+    
+    # Add entry to session state list
+    if st.button("Add Entry"):
+        entry = {
+            'Name': name,
+            'Manager': manager,
+            'AI Tool': ai_tool,
+            'Purpose': purpose,
+            'Duration': duration,
+            'Result/Outcome': result,
+            'Notes': notes
+        }
+        st.session_state.entries.append(entry)
+        save_entries(st.session_state.entries)
 
-# Add entry to session state list
-if st.button("Add Entry"):
-    entry = {
-        'Name': name,
-        'Manager': manager,
-        'AI Tool': ai_tool,
-        'Purpose': purpose,
-        'Duration': duration,
-        'Result/Outcome': result,
-        'Notes': notes
-    }
-    st.session_state.entries.append(entry)
-    save_entries(st.session_state.entries)
 
-# Display current log
-df = pd.DataFrame(st.session_state.entries)
-st.subheader("Current Log Entries")
-if df.empty:
-    st.write("No entries yet.")
-else:
-    st.dataframe(df)
-    # CSV download
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button("Download CSV", data=csv, file_name="ai_usage_log.csv", mime="text/csv")
+with tab2:
+    st.title("AI Usage Analytics")
+    
+    df = pd.DataFrame(st.session_state.entries)
+    if df.empty:
+        st.write("No data available for visualization.")
+    else:
+        st.subheader("Distribution by Purpose")
+        
+        # Count entries by purpose
+        purpose_counts = df['Purpose'].value_counts()
+        
+        # Create pie chart
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.pie(purpose_counts, labels=purpose_counts.index, autopct='%1.1f%%', startangle=90)
+        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+        st.pyplot(fig)
+        
+        # Add numeric breakdown
+        st.subheader("Purpose Breakdown")
+        purpose_df = pd.DataFrame({
+            'Purpose': purpose_counts.index,
+            'Count': purpose_counts.values,
+            'Percentage': (purpose_counts.values / purpose_counts.sum() * 100).round(1)
+        })
+        st.dataframe(purpose_df)
+        
+        # Other potential visualizations
+        st.subheader("Duration by AI Tool")
+        tool_duration = df.groupby('AI Tool')['Duration'].sum().reset_index()
+        st.bar_chart(tool_duration.set_index('AI Tool'))
