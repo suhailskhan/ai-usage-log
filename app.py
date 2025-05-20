@@ -1,13 +1,15 @@
 import streamlit as st
 import pandas as pd
-import os
+from storage import get_storage
 
-LOG_FILE = 'ai_usage_log.csv'
+# Set storage type here
+storage = get_storage("SQLite")
 
 def load_entries():
-    if os.path.exists(LOG_FILE):
-        return pd.read_csv(LOG_FILE).to_dict('records')
-    return []
+    return storage.load()
+
+def save_entries(entries):
+    storage.save(entries)
 
 # Initialize session state for entries
 def init_state():
@@ -39,7 +41,7 @@ if st.button("Add Entry"):
         'Notes': notes
     }
     st.session_state.entries.append(entry)
-    pd.DataFrame(st.session_state.entries).to_csv(LOG_FILE, index=False)
+    save_entries(st.session_state.entries)
 
 # Display current log
 df = pd.DataFrame(st.session_state.entries)
