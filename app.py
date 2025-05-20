@@ -1,10 +1,18 @@
 import streamlit as st
 import pandas as pd
+import os
+
+LOG_FILE = 'ai_usage_log.csv'
+
+def load_entries():
+    if os.path.exists(LOG_FILE):
+        return pd.read_csv(LOG_FILE).to_dict('records')
+    return []
 
 # Initialize session state for entries
 def init_state():
     if 'entries' not in st.session_state:
-        st.session_state.entries = []
+        st.session_state.entries = load_entries()
 
 init_state()
 
@@ -21,7 +29,7 @@ notes = st.text_area("Notes (optional)")
 
 # Add entry to session state list
 if st.button("Add Entry"):
-    st.session_state.entries.append({
+    entry = {
         'Name': name,
         'Manager': manager,
         'AI Tool': ai_tool,
@@ -29,7 +37,9 @@ if st.button("Add Entry"):
         'Duration': duration,
         'Result/Outcome': result,
         'Notes': notes
-    })
+    }
+    st.session_state.entries.append(entry)
+    pd.DataFrame(st.session_state.entries).to_csv(LOG_FILE, index=False)
 
 # Display current log
 df = pd.DataFrame(st.session_state.entries)
