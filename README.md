@@ -7,7 +7,7 @@ A Streamlit-based application for tracking and analyzing AI tool usage within an
 - **Data Entry:** Log AI tool usage with details such as employee name, manager, tool used, purpose, duration, and outcomes
 - **Analytics Dashboard:** Visualize usage patterns through charts and tables
 - **Flexible Storage Options:** Store data in CSV or SQLite database
-- **Environment Configuration:** Easily configure storage options via environment variables
+- **Environment Configuration:** Easily configure storage options via the `.env` file
 - **Weekly Digest Email:** Automatically sends a weekly email summarizing key usage statistics, including charts and insights, to configured recipients.
 
 ## Analytics
@@ -54,15 +54,36 @@ The application supports three storage types:
 1. **CSV Storage:** Simple file-based storage
 2. **SQLite Storage (Default):** Local database file storage
 
-Configure storage via environment variables:
+Configure storage via the `.env` file:
 
-```bash
+```env
 # For SQLite (default)
-export STORAGE_TYPE=SQLite
+STORAGE_TYPE=SQLite
 
 # For CSV
-export STORAGE_TYPE=CSV
+STORAGE_TYPE=CSV
 ```
+
+If `STORAGE_TYPE` is not set, the application defaults to SQLite.
+
+## Configuration via .env
+
+The following settings can be configured in your `.env` file:
+
+| Variable         | Description                                                      | Example Value(s)                        |
+|------------------|------------------------------------------------------------------|------------------------------------------|
+| MANAGER_CHOICES  | Comma-separated list of manager names for the survey             | Alice,Bob,Charlie                        |
+| TOOL_CHOICES     | Comma-separated list of AI tools                                 | ChatGPT,GitHub Copilot,Claude            |
+| PURPOSE_CHOICES  | Comma-separated list of purposes                                 | Development,Writing,Research,Other       |
+| STORAGE_TYPE     | Storage backend: `SQLite` (default) or `CSV`                     | SQLite                                   |
+| SMTP_SERVER      | SMTP server for weekly digest email                              | smtp.example.com                         |
+| SMTP_PORT        | SMTP server port (usually 465 for SSL)                           | 465                                      |
+| SMTP_USERNAME    | SMTP login username                                              | your_email@example.com                   |
+| SMTP_PASSWORD    | SMTP login password or app password                              | your_password                            |
+| RECIPIENTS       | Comma-separated list of email recipients for the digest          | recipient1@example.com,recipient2@ex.com |
+| STREAMLIT_APP_URL| Public or local URL for the Streamlit app (for email links)      | http://localhost:8501                    |
+
+See [`.env.example`](.env.example) for a template. All fields are optional except SMTP settings if you want to enable weekly email digests.
 
 ## Application Structure
 
