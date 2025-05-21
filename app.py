@@ -60,13 +60,13 @@ with tab1:
             max_selections=1,
             accept_new_options=True,
         )
-        duration = st.number_input("Duration (minutes)", min_value=1)
+        duration = st.number_input("Duration (minutes)", min_value=0)
         complexity = st.selectbox(
             "What was the complexity level of the task?",
             ["(Select complexity)", "Easy", "Medium", "Hard"]
         )
         satisfaction = st.slider("Rate your confidence in the tools’s final output.", 1, 5, 3)
-        time_without_ai = st.number_input("About how much time might the task have taken you to complete without AI assistance? (minutes)", min_value=1)
+        time_without_ai = st.number_input("About how much time might the task have taken you to complete without AI assistance? (minutes)", min_value=0)
         workflow_impact = st.selectbox(
             "Estimate the impact that this use of AI tools has had on your overall workflow.",
             [
@@ -90,6 +90,7 @@ with tab1:
             purpose_val = purpose[0] if purpose else ""
             complexity_val = complexity if complexity != "(Select complexity)" else ""
             workflow_impact_val = workflow_impact if workflow_impact != "(Select impact)" else ""
+            # Require duration and time_without_ai to be greater than 0
             if not all([
                 name.strip(),
                 manager_val.strip(),
@@ -100,9 +101,9 @@ with tab1:
                 str(satisfaction).strip(),
                 str(time_without_ai).strip(),
                 workflow_impact_val.strip()
-            ]):
+            ]) or duration <= 0 or time_without_ai <= 0:
                 st.toast("There was a problem with submission.", icon="⚠️")
-                st.warning("Please fill in all required fields.")
+                st.warning("Please fill in all required fields and ensure minutes are greater than 0.")
             else:
                 entry = {
                     'Name': name,
