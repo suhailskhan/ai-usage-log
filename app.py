@@ -184,24 +184,31 @@ with tab2:
                 fig = px.pie(purpose_counts, names='Purpose', values='Count', title='Purpose Distribution')
                 st.plotly_chart(fig, use_container_width=True)
 
-                st.subheader("Purpose Breakdown")
-                purpose_df = pd.DataFrame({
-                    'Purpose': purpose_counts['Purpose'],
-                    'Count': purpose_counts['Count'],
-                    'Percentage': (purpose_counts['Count'] / purpose_counts['Count'].sum() * 100).round(1)
-                })
-                st.dataframe(purpose_df)
+                st.subheader("Purpose vs AI Tool: Average Time Saved Heatmap")
+                filtered_df["Time Saved"] = filtered_df["Time Without AI"] - filtered_df["Duration"]
+                heatmap_df = filtered_df.pivot_table(
+                    index="Purpose",
+                    columns="AI Tool",
+                    values="Time Saved",
+                    aggfunc="mean"
+                )
+                if not heatmap_df.empty:
+                    import plotly.express as px
+                    fig = px.imshow(
+                        heatmap_df,
+                        text_auto=True,
+                        color_continuous_scale="Blues",
+                        aspect="auto",
+                        labels=dict(x="AI Tool", y="Purpose", color="Avg Time Saved (min)")
+                    )
+                    fig.update_layout(title="Average Time Saved by Purpose and AI Tool")
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Not enough data for heatmap.")
+
                 st.subheader("Duration by AI Tool")
                 tool_duration = filtered_df.groupby('AI Tool')['Duration'].sum().reset_index()
                 st.bar_chart(tool_duration.set_index('AI Tool'))
-
-                st.subheader("Time Saved Analysis")
-                filtered_df["Time Saved"] = filtered_df["Time Without AI"] - filtered_df["Duration"]
-                total_time_saved = filtered_df["Time Saved"].sum()
-                avg_time_saved = filtered_df["Time Saved"].mean()
-                st.metric("Total Time Saved (minutes)", f"{total_time_saved:.1f}")
-                st.metric("Average Time Saved per Task (minutes)", f"{avg_time_saved:.1f}")
-                st.bar_chart(filtered_df["Time Saved"], use_container_width=True)
 
                 st.subheader("Tool Effectiveness Benchmarking")
                 tool_stats = filtered_df.groupby("AI Tool").agg({
@@ -260,27 +267,6 @@ with tab2:
                 }, inplace=True)
                 st.dataframe(purpose_stats)
 
-                st.subheader("Purpose vs AI Tool: Average Time Saved Heatmap")
-                heatmap_df = filtered_df.pivot_table(
-                    index="Purpose",
-                    columns="AI Tool",
-                    values="Time Saved",
-                    aggfunc="mean"
-                )
-                if not heatmap_df.empty:
-                    import plotly.express as px
-                    fig = px.imshow(
-                        heatmap_df,
-                        text_auto=True,
-                        color_continuous_scale="Blues",
-                        aspect="auto",
-                        labels=dict(x="AI Tool", y="Purpose", color="Avg Time Saved (min)")
-                    )
-                    fig.update_layout(title="Average Time Saved by Purpose and AI Tool")
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.info("Not enough data for heatmap.")
-
                 st.subheader("Trend & Seasonality Analysis")
                 # Ensure timestamp is datetime
                 filtered_df["Timestamp"] = pd.to_datetime(filtered_df["Timestamp"])
@@ -314,24 +300,28 @@ with tab2:
                         purpose_counts.columns = ['Purpose', 'Count']
                         fig = px.pie(purpose_counts, names='Purpose', values='Count', title='Purpose Distribution')
                         st.plotly_chart(fig, use_container_width=True)
-                        st.subheader("Purpose Breakdown")
-                        purpose_df = pd.DataFrame({
-                            'Purpose': purpose_counts['Purpose'],
-                            'Count': purpose_counts['Count'],
-                            'Percentage': (purpose_counts['Count'] / purpose_counts['Count'].sum() * 100).round(1)
-                        })
-                        st.dataframe(purpose_df)
+
+                        # --- By-Manager: Purpose vs AI Tool Heatmap ---
+                        st.subheader("Purpose vs AI Tool: Avg Time Saved Heatmap")
+                        filtered_df["Time Saved"] = filtered_df["Time Without AI"] - filtered_df["Duration"]
+                        heatmap_df_m = filtered_df.pivot_table(
+                            index="Purpose", columns="AI Tool", values="Time Saved", aggfunc="mean"
+                        )
+                        if not heatmap_df_m.empty:
+                            fig_hm = px.imshow(
+                                heatmap_df_m,
+                                text_auto=True,
+                                color_continuous_scale="Blues",
+                                labels=dict(x="AI Tool", y="Purpose", color="Avg Time Saved (min)")
+                            )
+                            fig_hm.update_layout(title=f"{selected_manager}: Avg Time Saved by Purpose & Tool")
+                            st.plotly_chart(fig_hm, use_container_width=True)
+                        else:
+                            st.info("Not enough data for manager-level heatmap.")
+                        
                         st.subheader("Duration by AI Tool")
                         tool_duration = filtered_df.groupby('AI Tool')['Duration'].sum().reset_index()
                         st.bar_chart(tool_duration.set_index('AI Tool'))
-
-                        st.subheader("Time Saved Analysis")
-                        filtered_df["Time Saved"] = filtered_df["Time Without AI"] - filtered_df["Duration"]
-                        total_time_saved = filtered_df["Time Saved"].sum()
-                        avg_time_saved = filtered_df["Time Saved"].mean()
-                        st.metric("Total Time Saved (minutes)", f"{total_time_saved:.1f}")
-                        st.metric("Average Time Saved per Task (minutes)", f"{avg_time_saved:.1f}")
-                        st.bar_chart(filtered_df["Time Saved"], use_container_width=True)
 
                         st.subheader("Tool Effectiveness Benchmarking")
                         tool_stats = filtered_df.groupby("AI Tool").agg({
@@ -363,23 +353,6 @@ with tab2:
                         fig = px.scatter(filtered_df, x="Time Saved", y="Satisfaction", color="AI Tool", hover_data=["Purpose"])
                         fig.update_layout(title=f"{selected_manager}: Satisfaction vs Time Saved")
                         st.plotly_chart(fig, use_container_width=True)
-
-                        # --- By-Manager: Purpose vs AI Tool Heatmap ---
-                        st.subheader("Purpose vs AI Tool: Avg Time Saved Heatmap")
-                        heatmap_df_m = filtered_df.pivot_table(
-                            index="Purpose", columns="AI Tool", values="Time Saved", aggfunc="mean"
-                        )
-                        if not heatmap_df_m.empty:
-                            fig_hm = px.imshow(
-                                heatmap_df_m,
-                                text_auto=True,
-                                color_continuous_scale="Blues",
-                                labels=dict(x="AI Tool", y="Purpose", color="Avg Time Saved (min)")
-                            )
-                            fig_hm.update_layout(title=f"{selected_manager}: Avg Time Saved by Purpose & Tool")
-                            st.plotly_chart(fig_hm, use_container_width=True)
-                        else:
-                            st.info("Not enough data for manager-level heatmap.")
 
                         # --- By-Manager: Trend & Seasonality ---
                         st.subheader("Trend & Seasonality Analysis")
