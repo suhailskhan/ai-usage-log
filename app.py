@@ -232,6 +232,26 @@ with tab2:
                     "Duration": "# Tasks"
                 }, inplace=True)
                 st.dataframe(purpose_stats)
+                st.subheader("Purpose vs AI Tool: Average Time Saved Heatmap")
+                heatmap_df = filtered_df.pivot_table(
+                    index="Purpose",
+                    columns="AI Tool",
+                    values="Time Saved",
+                    aggfunc="mean"
+                )
+                if not heatmap_df.empty:
+                    import plotly.express as px
+                    fig = px.imshow(
+                        heatmap_df,
+                        text_auto=True,
+                        color_continuous_scale="Blues",
+                        aspect="auto",
+                        labels=dict(x="AI Tool", y="Purpose", color="Avg Time Saved (min)")
+                    )
+                    fig.update_layout(title="Average Time Saved by Purpose and AI Tool")
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Not enough data for heatmap.")
         elif stats_selection == 0:
             st.toast("Showing statistics by manager.")
             st.session_state['last_stats_selection'] = 0
