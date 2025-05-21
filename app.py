@@ -35,7 +35,8 @@ def init_state():
 init_state()
 
 # Create tabs for data entry and visualization
-tab1, tab2 = st.tabs(["Survey", "Statistics"])
+# Now three tabs: Survey, Statistics, Raw Data
+tab1, tab2, tab3 = st.tabs(["Survey", "Statistics", "Raw Data"])
 
 with tab1:
     st.title("AI Tool Usage - Survey")
@@ -130,10 +131,9 @@ with tab2:
     if df.empty:
         st.write("No data available for visualization.")
     else:
-        # Pills for statistics views
+        # Pills for statistics views (remove Raw Data option)
         stats_option_map = {
-            0: ":material/filter_alt: By Manager",
-            1: "Raw Data"
+            0: ":material/filter_alt: By Manager"
         }
         stats_selection = st.pills(
             "Statistics View",
@@ -199,14 +199,14 @@ with tab2:
                         st.subheader("Duration by AI Tool")
                         tool_duration = filtered_df.groupby('AI Tool')['Duration'].sum().reset_index()
                         st.bar_chart(tool_duration.set_index('AI Tool'))
-        elif stats_selection == 1:
-            st.toast("Showing raw data.")
-            st.session_state['last_stats_selection'] = 1
-            df = pd.DataFrame(st.session_state.entries)
-            st.subheader("Data:")
-            if df.empty:
-                st.write("No submissions yet.")
-            else:
-                st.dataframe(df)
-                csv = df.to_csv(index=False).encode('utf-8')
-                st.info("To download a CSV of this data, hover over the table and click the Download button at the top right.")
+
+with tab3:
+    st.title("AI Tool Usage - Raw Data")
+    df = pd.DataFrame(st.session_state.entries)
+    st.subheader("Data:")
+    if df.empty:
+        st.write("No submissions yet.")
+    else:
+        st.dataframe(df)
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.info("To download a CSV of this data, hover over the table and click the Download button at the top right.")
