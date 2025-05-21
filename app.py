@@ -34,6 +34,24 @@ def init_state():
 
 init_state()
 
+# Workflow Impact mapping
+WORKFLOW_IMPACT_MAP = {
+    "Little to none": 1,
+    "Minor improvement": 2,
+    "Moderate improvement": 3,
+    "Considerable improvement": 4,
+    "Significant improvement": 5
+}
+REVERSE_WORKFLOW_IMPACT_MAP = {v: k for k, v in WORKFLOW_IMPACT_MAP.items()}
+
+# Task Complexity mapping
+TASK_COMPLEXITY_MAP = {
+    "Easy": 1,
+    "Medium": 2,
+    "Hard": 3
+}
+REVERSE_TASK_COMPLEXITY_MAP = {v: k for k, v in TASK_COMPLEXITY_MAP.items()}
+
 # Create tabs for data entry, visualization, raw data
 tab1, tab2, tab3 = st.tabs(["Survey", "Statistics", "Raw Data"])
 
@@ -89,7 +107,9 @@ with tab1:
             ai_tool_val = ai_tool[0] if ai_tool else ""
             purpose_val = purpose[0] if purpose else ""
             complexity_val = complexity if complexity != "(Select complexity)" else ""
+            complexity_num = TASK_COMPLEXITY_MAP.get(complexity_val, None)
             workflow_impact_val = workflow_impact if workflow_impact != "(Select impact)" else ""
+            workflow_impact_num = WORKFLOW_IMPACT_MAP.get(workflow_impact_val, None)
             # Require duration and time_without_ai to be greater than 0
             if not all([
                 name.strip(),
@@ -101,7 +121,7 @@ with tab1:
                 str(satisfaction).strip(),
                 str(time_without_ai).strip(),
                 workflow_impact_val.strip()
-            ]) or duration <= 0 or time_without_ai <= 0:
+            ]) or duration <= 0 or time_without_ai <= 0 or workflow_impact_num is None or complexity_num is None:
                 st.toast("There was a problem with submission.", icon="⚠️")
                 st.warning("Please fill in all required fields and ensure minutes are greater than 0.")
             else:
@@ -111,10 +131,10 @@ with tab1:
                     'AI Tool': ai_tool_val,
                     'Purpose': purpose_val,
                     'Duration': duration,
-                    'Task Complexity': complexity_val,
+                    'Task Complexity': complexity_num,
                     "Satisfaction": satisfaction,
                     "Time Without AI": time_without_ai,
-                    "Workflow Impact": workflow_impact_val,
+                    "Workflow Impact": workflow_impact_num,
                     'Result/Outcome': result,
                     'Notes': notes,
                     'Timestamp': datetime.datetime.now().isoformat()
@@ -127,6 +147,10 @@ with tab2:
     st.title("AI Tool Usage - Statistics")
 
     df = pd.DataFrame(st.session_state.entries)
+    if not df.empty and 'Workflow Impact' in df.columns:
+        df['Workflow Impact'] = df['Workflow Impact'].map(REVERSE_WORKFLOW_IMPACT_MAP).fillna(df['Workflow Impact'])
+    if not df.empty and 'Task Complexity' in df.columns:
+        df['Task Complexity'] = df['Task Complexity'].map(REVERSE_TASK_COMPLEXITY_MAP).fillna(df['Task Complexity'])
     if df.empty:
         st.write("No data available for visualization.")
     else:
@@ -319,6 +343,10 @@ with tab2:
 with tab3:
     st.title("AI Tool Usage - Raw Data")
     df = pd.DataFrame(st.session_state.entries)
+    if not df.empty and 'Workflow Impact' in df.columns:
+        df['Workflow Impact'] = df['Workflow Impact'].map(REVERSE_WORKFLOW_IMPACT_MAP).fillna(df['Workflow Impact'])
+    if not df.empty and 'Task Complexity' in df.columns:
+        df['Task Complexity'] = df['Task Complexity'].map(REVERSE_TASK_COMPLEXITY_MAP).fillna(df['Task Complexity'])
     st.subheader("Data:")
     if df.empty:
         st.write("No submissions yet.")

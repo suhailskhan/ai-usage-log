@@ -26,7 +26,7 @@ class SQLiteStorage(Storage):
     def _ensure_table(self):
         c = self.conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS entries (
-            Name TEXT, Manager TEXT, AI_Tool TEXT, Purpose TEXT, Duration INTEGER, [Task_Complexity] TEXT, [Satisfaction] INTEGER, [Time_Without_AI] INTEGER, [Workflow_Impact] TEXT, Result_Outcome TEXT, Notes TEXT, Timestamp TEXT
+            Name TEXT, Manager TEXT, AI_Tool TEXT, Purpose TEXT, Duration INTEGER, [Task_Complexity] TEXT, [Satisfaction] INTEGER, [Time_Without_AI] INTEGER, [Workflow_Impact] INTEGER, Result_Outcome TEXT, Notes TEXT, Timestamp TEXT
         )''')
         # Add new columns if missing (for legacy tables)
         cols = [col[1] for col in c.execute("PRAGMA table_info(entries)").fetchall()]
@@ -37,7 +37,7 @@ class SQLiteStorage(Storage):
         if 'Time_Without_AI' not in cols:
             c.execute("ALTER TABLE entries ADD COLUMN Time_Without_AI INTEGER")
         if 'Workflow_Impact' not in cols:
-            c.execute("ALTER TABLE entries ADD COLUMN Workflow_Impact TEXT")
+            c.execute("ALTER TABLE entries ADD COLUMN Workflow_Impact INTEGER")
         if 'Timestamp' not in cols:
             c.execute("ALTER TABLE entries ADD COLUMN Timestamp TEXT")
         self.conn.commit()
