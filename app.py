@@ -12,6 +12,8 @@ MANAGER_CHOICES = get_env_choices("MANAGER_CHOICES", ["Manager 1", "Manager 2"])
 TOOL_CHOICES = get_env_choices("TOOL_CHOICES", ["ChatGPT", "GitHub Copilot"])
 PURPOSE_CHOICES = get_env_choices("PURPOSE_CHOICES", ["Development", "Writing", "Other"])
 
+STORAGE_TYPE = os.getenv("STORAGE_TYPE", "SQLite")
+
 import streamlit as st
 st.set_page_config(page_title="AI Tool Usage", page_icon="📊")
 import pandas as pd
@@ -19,7 +21,7 @@ from storage import get_storage
 import datetime
 
 # Set storage type here
-storage = get_storage("SQLite")
+storage = get_storage(STORAGE_TYPE)
 
 def load_entries():
     return storage.load()
