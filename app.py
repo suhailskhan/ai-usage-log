@@ -1,3 +1,17 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+def get_env_choices(var_name, default=None):
+    value = os.getenv(var_name)
+    if value:
+        return [v.strip() for v in value.split(",") if v.strip()]
+    return default if default is not None else []
+
+MANAGER_CHOICES = get_env_choices("MANAGER_CHOICES", ["Manager 1", "Manager 2"])
+TOOL_CHOICES = get_env_choices("TOOL_CHOICES", ["ChatGPT", "GitHub Copilot"])
+PURPOSE_CHOICES = get_env_choices("PURPOSE_CHOICES", ["Development", "Writing", "Other"])
+
 import streamlit as st
 st.set_page_config(page_title="AI Tool Usage")
 import pandas as pd
@@ -28,9 +42,9 @@ with tab1:
 
     with st.form("usage_form"):
         name = st.text_input("Name")
-        manager = st.text_input("Manager’s Name")
-        ai_tool = st.selectbox("AI Tool", ["ChatGPT", "GitHub Copilot"])
-        purpose = st.selectbox("Purpose", ["Development", "Writing", "Other"])
+        manager = st.selectbox("Manager", MANAGER_CHOICES)
+        ai_tool = st.selectbox("AI Tool", TOOL_CHOICES)
+        purpose = st.selectbox("Purpose", PURPOSE_CHOICES)
         duration = st.number_input("Duration (minutes)", min_value=1)
         complexity = st.selectbox("What was the complexity level of the task?", ["Easy", "Medium", "Hard"])
         satisfaction = st.slider("Rate your confidence in the tools’s final output.", 1, 5, 3)
