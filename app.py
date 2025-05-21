@@ -13,7 +13,7 @@ TOOL_CHOICES = get_env_choices("TOOL_CHOICES", ["ChatGPT", "GitHub Copilot"])
 PURPOSE_CHOICES = get_env_choices("PURPOSE_CHOICES", ["Development", "Writing", "Other"])
 
 import streamlit as st
-st.set_page_config(page_title="AI Tool Usage")
+st.set_page_config(page_title="AI Tool Usage", page_icon="📊")
 import pandas as pd
 from storage import get_storage
 import datetime
