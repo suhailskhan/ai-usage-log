@@ -20,38 +20,49 @@ def init_state():
 init_state()
 
 # Create tabs for data entry and visualization
-tab1, tab2 = st.tabs(["New Entry", "Analytics"])
+tab1, tab2 = st.tabs(["Survey", "Statistics"])
 
 with tab1:
-    st.title("AI Tool Usage Logger")
-    
-    # Reactive input fields
-    name = st.text_input("Employee Name")
-    manager = st.text_input("Manager's Name")
-    ai_tool = st.selectbox("AI Tool", ["ChatGPT", "GitHub Copilot"])
-    purpose = st.selectbox("Purpose", ["Development", "Writing", "Other"])
-    duration = st.number_input("Duration (minutes)", min_value=0)
-    result = st.text_input("Result/Outcome")
-    notes = st.text_area("Notes (optional)")
-    
-    # Add entry to session state list
-    if st.button("Add Entry"):
-        entry = {
-            'Name': name,
-            'Manager': manager,
-            'AI Tool': ai_tool,
-            'Purpose': purpose,
-            'Duration': duration,
-            'Result/Outcome': result,
-            'Notes': notes
-        }
-        st.session_state.entries.append(entry)
-        save_entries(st.session_state.entries)
+    st.title("AI Tool Usage - Survey")
 
+    with st.form("usage_form"):
+        name = st.text_input("Name")
+        manager = st.text_input("Manager’s Name")
+        ai_tool = st.selectbox("AI Tool", ["ChatGPT", "GitHub Copilot"])
+        purpose = st.selectbox("Purpose", ["Development", "Writing", "Other"])
+        duration = st.number_input("Duration (minutes)", min_value=1)
+        result = st.text_input("Result/Outcome")
+        notes = st.text_area("Notes (optional)")
+        submitted = st.form_submit_button("Submit")
+
+        # Make all fields except notes mandatory
+        if submitted:
+            if not all([
+                name.strip(),
+                manager.strip(),
+                ai_tool.strip(),
+                purpose.strip(),
+                result.strip()
+            ]):
+                st.toast("There was a problem with submission.", icon="⚠️")
+                st.warning("Please fill in all required fields.")
+            else:
+                entry = {
+                    'Name': name,
+                    'Manager': manager,
+                    'AI Tool': ai_tool,
+                    'Purpose': purpose,
+                    'Duration': duration,
+                    'Result/Outcome': result,
+                    'Notes': notes
+                }
+                st.session_state.entries.append(entry)
+                save_entries(st.session_state.entries)
+                st.toast("Submitted!", icon="✅")
 
 with tab2:
-    st.title("AI Usage Analytics")
-    
+    st.title("AI Tool Usage - Statistics")
+
     df = pd.DataFrame(st.session_state.entries)
     if df.empty:
         st.write("No data available for visualization.")
