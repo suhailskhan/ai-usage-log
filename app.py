@@ -42,16 +42,35 @@ with tab1:
 
     with st.form("usage_form", clear_on_submit=True):
         name = st.text_input("Name")
-        manager = st.selectbox("Manager", MANAGER_CHOICES)
-        ai_tool = st.selectbox("AI Tool", TOOL_CHOICES)
-        purpose = st.selectbox("Purpose", PURPOSE_CHOICES)
+        manager = st.multiselect(
+            "Manager",
+            MANAGER_CHOICES,
+            max_selections=1,
+            accept_new_options=True,
+        )
+        ai_tool = st.multiselect(
+            "AI Tool",
+            TOOL_CHOICES,
+            max_selections=1,
+            accept_new_options=True,
+        )
+        purpose = st.multiselect(
+            "Purpose",
+            PURPOSE_CHOICES,
+            max_selections=1,
+            accept_new_options=True,
+        )
         duration = st.number_input("Duration (minutes)", min_value=1)
-        complexity = st.selectbox("What was the complexity level of the task?", ["Easy", "Medium", "Hard"])
+        complexity = st.selectbox(
+            "What was the complexity level of the task?",
+            ["(Select complexity)", "Easy", "Medium", "Hard"]
+        )
         satisfaction = st.slider("Rate your confidence in the tools’s final output.", 1, 5, 3)
         time_without_ai = st.number_input("About how much time might the task have taken you to complete without AI assistance? (minutes)", min_value=1)
         workflow_impact = st.selectbox(
             "Estimate the impact that this use of AI tools has had on your overall workflow.",
             [
+                "(Select impact)",
                 "Little to none",
                 "Minor improvement",
                 "Moderate improvement",
@@ -65,30 +84,36 @@ with tab1:
 
         # Make all fields except notes mandatory
         if submitted:
+            # Extract single values from multiselects
+            manager_val = manager[0] if manager else ""
+            ai_tool_val = ai_tool[0] if ai_tool else ""
+            purpose_val = purpose[0] if purpose else ""
+            complexity_val = complexity if complexity != "(Select complexity)" else ""
+            workflow_impact_val = workflow_impact if workflow_impact != "(Select impact)" else ""
             if not all([
                 name.strip(),
-                manager.strip(),
-                ai_tool.strip(),
-                purpose.strip(),
+                manager_val.strip(),
+                ai_tool_val.strip(),
+                purpose_val.strip(),
                 result.strip(),
-                complexity.strip(),
+                complexity_val.strip(),
                 str(satisfaction).strip(),
                 str(time_without_ai).strip(),
-                workflow_impact.strip()
+                workflow_impact_val.strip()
             ]):
                 st.toast("There was a problem with submission.", icon="⚠️")
                 st.warning("Please fill in all required fields.")
             else:
                 entry = {
                     'Name': name,
-                    'Manager': manager,
-                    'AI Tool': ai_tool,
-                    'Purpose': purpose,
+                    'Manager': manager_val,
+                    'AI Tool': ai_tool_val,
+                    'Purpose': purpose_val,
                     'Duration': duration,
-                    'Task Complexity': complexity,
+                    'Task Complexity': complexity_val,
                     "Satisfaction": satisfaction,
                     "Time Without AI": time_without_ai,
-                    "Workflow Impact": workflow_impact,
+                    "Workflow Impact": workflow_impact_val,
                     'Result/Outcome': result,
                     'Notes': notes,
                     'Timestamp': datetime.datetime.now().isoformat()
