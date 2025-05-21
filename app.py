@@ -199,6 +199,39 @@ with tab2:
                     "Satisfaction": "Avg Satisfaction"
                 }, inplace=True)
                 st.dataframe(complexity_stats)
+                st.subheader("Satisfaction vs Efficiency")
+                if not filtered_df["Time Saved"].isnull().all():
+                    fig = px.scatter(filtered_df, x="Time Saved", y="Satisfaction", color="AI Tool", hover_data=["Purpose", "Manager"])
+                    fig.update_layout(title="Satisfaction vs Time Saved by AI Tool")
+                    st.plotly_chart(fig, use_container_width=True)
+
+                st.subheader("Manager/Team Insights")
+                manager_stats = filtered_df.groupby("Manager").agg({
+                    "Time Saved": "mean",
+                    "Satisfaction": "mean",
+                    "Duration": "count"
+                }).reset_index()
+                manager_stats.rename(columns={
+                    "Time Saved": "Avg Time Saved",
+                    "Satisfaction": "Avg Satisfaction",
+                    "Duration": "# Tasks"
+                }, inplace=True)
+                st.dataframe(manager_stats)
+
+                st.subheader("Purpose-based Use Cases")
+                purpose_stats = filtered_df.groupby("Purpose").agg({
+                    "Time Saved": "mean",
+                    "Satisfaction": "mean",
+                    "Workflow Impact": lambda x: x.value_counts().index[0] if not x.empty else None,
+                    "Duration": "count"
+                }).reset_index()
+                purpose_stats.rename(columns={
+                    "Time Saved": "Avg Time Saved",
+                    "Satisfaction": "Avg Satisfaction",
+                    "Workflow Impact": "Most Common Workflow Impact",
+                    "Duration": "# Tasks"
+                }, inplace=True)
+                st.dataframe(purpose_stats)
         elif stats_selection == 0:
             st.toast("Showing statistics by manager.")
             st.session_state['last_stats_selection'] = 0
