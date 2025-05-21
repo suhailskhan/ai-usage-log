@@ -1,6 +1,6 @@
 import streamlit as st
+st.set_page_config(page_title="AI Tool Usage")
 import pandas as pd
-import matplotlib.pyplot as plt
 from storage import get_storage
 
 # Set storage type here
@@ -67,27 +67,83 @@ with tab2:
     if df.empty:
         st.write("No data available for visualization.")
     else:
-        st.subheader("Distribution by Purpose")
-        
-        # Count entries by purpose
-        purpose_counts = df['Purpose'].value_counts()
-        
-        # Create pie chart
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.pie(purpose_counts, labels=purpose_counts.index, autopct='%1.1f%%', startangle=90)
-        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
-        st.pyplot(fig)
-        
-        # Add numeric breakdown
-        st.subheader("Purpose Breakdown")
-        purpose_df = pd.DataFrame({
-            'Purpose': purpose_counts.index,
-            'Count': purpose_counts.values,
-            'Percentage': (purpose_counts.values / purpose_counts.sum() * 100).round(1)
-        })
-        st.dataframe(purpose_df)
-        
-        # Other potential visualizations
-        st.subheader("Duration by AI Tool")
-        tool_duration = df.groupby('AI Tool')['Duration'].sum().reset_index()
-        st.bar_chart(tool_duration.set_index('AI Tool'))
+        # Pills for statistics views
+        stats_option_map = {
+            0: ":material/filter_alt: By Manager",
+            1: "Raw Data"
+        }
+        stats_selection = st.pills(
+            "Statistics View",
+            options=stats_option_map.keys(),
+            format_func=lambda option: stats_option_map[option],
+            selection_mode="single",
+        )
+
+        # If no pill is selected, show unfiltered stats (default to all data)
+        if stats_selection is None:
+            # Show toast only if a pill was previously selected
+            if 'last_stats_selection' in st.session_state and st.session_state['last_stats_selection'] is not None:
+                st.toast("Showing all statistics.")
+            st.session_state['last_stats_selection'] = None
+            filtered_df = df.copy()
+            if filtered_df.empty:
+                st.write("No data available for visualization.")
+            else:
+                st.subheader("Distribution by Purpose")
+                import plotly.express as px
+                purpose_counts = filtered_df['Purpose'].value_counts().reset_index()
+                purpose_counts.columns = ['Purpose', 'Count']
+                fig = px.pie(purpose_counts, names='Purpose', values='Count', title='Purpose Distribution')
+                st.plotly_chart(fig, use_container_width=True)
+                st.subheader("Purpose Breakdown")
+                purpose_df = pd.DataFrame({
+                    'Purpose': purpose_counts['Purpose'],
+                    'Count': purpose_counts['Count'],
+                    'Percentage': (purpose_counts['Count'] / purpose_counts['Count'].sum() * 100).round(1)
+                })
+                st.dataframe(purpose_df)
+                st.subheader("Duration by AI Tool")
+                tool_duration = filtered_df.groupby('AI Tool')['Duration'].sum().reset_index()
+                st.bar_chart(tool_duration.set_index('AI Tool'))
+        elif stats_selection == 0:
+            st.toast("Showing statistics by manager.")
+            st.session_state['last_stats_selection'] = 0
+            managers = sorted(df['Manager'].dropna().unique())
+            if not managers:
+                st.write("No managers available to select.")
+            else:
+                selected_manager = st.selectbox("Select Manager", ["(Select a manager)"] + managers)
+                if selected_manager == "(Select a manager)":
+                    st.info("Please select a manager to view statistics.")
+                else:
+                    filtered_df = df[df['Manager'] == selected_manager]
+                    if filtered_df.empty:
+                        st.write("No data available for visualization.")
+                    else:
+                        st.subheader("Distribution by Purpose")
+                        import plotly.express as px
+                        purpose_counts = filtered_df['Purpose'].value_counts().reset_index()
+                        purpose_counts.columns = ['Purpose', 'Count']
+                        fig = px.pie(purpose_counts, names='Purpose', values='Count', title='Purpose Distribution')
+                        st.plotly_chart(fig, use_container_width=True)
+                        st.subheader("Purpose Breakdown")
+                        purpose_df = pd.DataFrame({
+                            'Purpose': purpose_counts['Purpose'],
+                            'Count': purpose_counts['Count'],
+                            'Percentage': (purpose_counts['Count'] / purpose_counts['Count'].sum() * 100).round(1)
+                        })
+                        st.dataframe(purpose_df)
+                        st.subheader("Duration by AI Tool")
+                        tool_duration = filtered_df.groupby('AI Tool')['Duration'].sum().reset_index()
+                        st.bar_chart(tool_duration.set_index('AI Tool'))
+        elif stats_selection == 1:
+            st.toast("Showing raw data.")
+            st.session_state['last_stats_selection'] = 1
+            df = pd.DataFrame(st.session_state.entries)
+            st.subheader("Data:")
+            if df.empty:
+                st.write("No submissions yet.")
+            else:
+                st.dataframe(df)
+                csv = df.to_csv(index=False).encode('utf-8')
+                st.info("To download a CSV of this data, hover over the table and click the Download button at the top right.")
