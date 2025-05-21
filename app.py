@@ -2,6 +2,7 @@ import streamlit as st
 st.set_page_config(page_title="AI Tool Usage")
 import pandas as pd
 from storage import get_storage
+import datetime
 
 # Set storage type here
 storage = get_storage("SQLite")
@@ -31,8 +32,21 @@ with tab1:
         ai_tool = st.selectbox("AI Tool", ["ChatGPT", "GitHub Copilot"])
         purpose = st.selectbox("Purpose", ["Development", "Writing", "Other"])
         duration = st.number_input("Duration (minutes)", min_value=1)
-        result = st.text_input("Result/Outcome")
-        notes = st.text_area("Notes (optional)")
+        complexity = st.selectbox("What was the complexity level of the task?", ["Easy", "Medium", "Hard"])
+        satisfaction = st.slider("Rate your confidence in the tools’s final output.", 1, 5, 3)
+        time_without_ai = st.number_input("About how much time might the task have taken you to complete without AI assistance? (minutes)", min_value=1)
+        workflow_impact = st.selectbox(
+            "Estimate the impact that this use of AI tools has had on your overall workflow.",
+            [
+                "Little to none",
+                "Minor improvement",
+                "Moderate improvement",
+                "Considerable improvement",
+                "Significant improvement"
+            ]
+        )
+        result = st.text_input("Describe the result/outcome.")
+        notes = st.text_area("Additional notes (optional):")
         submitted = st.form_submit_button("Submit")
 
         # Make all fields except notes mandatory
@@ -42,7 +56,11 @@ with tab1:
                 manager.strip(),
                 ai_tool.strip(),
                 purpose.strip(),
-                result.strip()
+                result.strip(),
+                complexity.strip(),
+                str(satisfaction).strip(),
+                str(time_without_ai).strip(),
+                workflow_impact.strip()
             ]):
                 st.toast("There was a problem with submission.", icon="⚠️")
                 st.warning("Please fill in all required fields.")
@@ -53,8 +71,13 @@ with tab1:
                     'AI Tool': ai_tool,
                     'Purpose': purpose,
                     'Duration': duration,
+                    'Task Complexity': complexity,
+                    "Satisfaction": satisfaction,
+                    "Time Without AI": time_without_ai,
+                    "Workflow Impact": workflow_impact,
                     'Result/Outcome': result,
-                    'Notes': notes
+                    'Notes': notes,
+                    'Timestamp': datetime.datetime.now().isoformat()
                 }
                 st.session_state.entries.append(entry)
                 save_entries(st.session_state.entries)
