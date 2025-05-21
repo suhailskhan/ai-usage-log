@@ -34,8 +34,7 @@ def init_state():
 
 init_state()
 
-# Create tabs for data entry and visualization
-# Now three tabs: Survey, Statistics, Raw Data
+# Create tabs for data entry, visualization, raw data
 tab1, tab2, tab3 = st.tabs(["Survey", "Statistics", "Raw Data"])
 
 with tab1:
@@ -131,7 +130,7 @@ with tab2:
     if df.empty:
         st.write("No data available for visualization.")
     else:
-        # Pills for statistics views (remove Raw Data option)
+        # Pills for statistics views
         stats_option_map = {
             0: ":material/filter_alt: By Manager"
         }
@@ -168,6 +167,38 @@ with tab2:
                 st.subheader("Duration by AI Tool")
                 tool_duration = filtered_df.groupby('AI Tool')['Duration'].sum().reset_index()
                 st.bar_chart(tool_duration.set_index('AI Tool'))
+
+                st.subheader("Time Saved Analysis")
+                filtered_df["Time Saved"] = filtered_df["Time Without AI"] - filtered_df["Duration"]
+                total_time_saved = filtered_df["Time Saved"].sum()
+                avg_time_saved = filtered_df["Time Saved"].mean()
+                st.metric("Total Time Saved (minutes)", f"{total_time_saved:.1f}")
+                st.metric("Average Time Saved per Task (minutes)", f"{avg_time_saved:.1f}")
+                st.bar_chart(filtered_df["Time Saved"], use_container_width=True)
+
+                st.subheader("Tool Effectiveness Benchmarking")
+                tool_stats = filtered_df.groupby("AI Tool").agg({
+                    "Time Saved": "mean",
+                    "Satisfaction": "mean",
+                    "Workflow Impact": lambda x: x.value_counts().index[0] if not x.empty else None
+                }).reset_index()
+                tool_stats.rename(columns={
+                    "Time Saved": "Avg Time Saved",
+                    "Satisfaction": "Avg Satisfaction",
+                    "Workflow Impact": "Most Common Workflow Impact"
+                }, inplace=True)
+                st.dataframe(tool_stats)
+
+                st.subheader("Complexity vs Impact")
+                complexity_stats = filtered_df.groupby("Task Complexity").agg({
+                    "Time Saved": "mean",
+                    "Satisfaction": "mean"
+                }).reset_index()
+                complexity_stats.rename(columns={
+                    "Time Saved": "Avg Time Saved",
+                    "Satisfaction": "Avg Satisfaction"
+                }, inplace=True)
+                st.dataframe(complexity_stats)
         elif stats_selection == 0:
             st.toast("Showing statistics by manager.")
             st.session_state['last_stats_selection'] = 0
@@ -199,6 +230,38 @@ with tab2:
                         st.subheader("Duration by AI Tool")
                         tool_duration = filtered_df.groupby('AI Tool')['Duration'].sum().reset_index()
                         st.bar_chart(tool_duration.set_index('AI Tool'))
+
+                        st.subheader("Time Saved Analysis")
+                        filtered_df["Time Saved"] = filtered_df["Time Without AI"] - filtered_df["Duration"]
+                        total_time_saved = filtered_df["Time Saved"].sum()
+                        avg_time_saved = filtered_df["Time Saved"].mean()
+                        st.metric("Total Time Saved (minutes)", f"{total_time_saved:.1f}")
+                        st.metric("Average Time Saved per Task (minutes)", f"{avg_time_saved:.1f}")
+                        st.bar_chart(filtered_df["Time Saved"], use_container_width=True)
+
+                        st.subheader("Tool Effectiveness Benchmarking")
+                        tool_stats = filtered_df.groupby("AI Tool").agg({
+                            "Time Saved": "mean",
+                            "Satisfaction": "mean",
+                            "Workflow Impact": lambda x: x.value_counts().index[0] if not x.empty else None
+                        }).reset_index()
+                        tool_stats.rename(columns={
+                            "Time Saved": "Avg Time Saved",
+                            "Satisfaction": "Avg Satisfaction",
+                            "Workflow Impact": "Most Common Workflow Impact"
+                        }, inplace=True)
+                        st.dataframe(tool_stats)
+
+                        st.subheader("Complexity vs Impact")
+                        complexity_stats = filtered_df.groupby("Task Complexity").agg({
+                            "Time Saved": "mean",
+                            "Satisfaction": "mean"
+                        }).reset_index()
+                        complexity_stats.rename(columns={
+                            "Time Saved": "Avg Time Saved",
+                            "Satisfaction": "Avg Satisfaction"
+                        }, inplace=True)
+                        st.dataframe(complexity_stats)
 
 with tab3:
     st.title("AI Tool Usage - Raw Data")
