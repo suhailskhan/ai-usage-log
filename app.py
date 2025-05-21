@@ -181,6 +181,7 @@ with tab2:
                 purpose_counts.columns = ['Purpose', 'Count']
                 fig = px.pie(purpose_counts, names='Purpose', values='Count', title='Purpose Distribution')
                 st.plotly_chart(fig, use_container_width=True)
+
                 st.subheader("Purpose Breakdown")
                 purpose_df = pd.DataFrame({
                     'Purpose': purpose_counts['Purpose'],
@@ -256,6 +257,7 @@ with tab2:
                     "Duration": "# Tasks"
                 }, inplace=True)
                 st.dataframe(purpose_stats)
+
                 st.subheader("Purpose vs AI Tool: Average Time Saved Heatmap")
                 heatmap_df = filtered_df.pivot_table(
                     index="Purpose",
@@ -276,6 +278,19 @@ with tab2:
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("Not enough data for heatmap.")
+
+                st.subheader("Trend & Seasonality Analysis")
+                # Ensure timestamp is datetime
+                filtered_df["Timestamp"] = pd.to_datetime(filtered_df["Timestamp"])
+                import plotly.express as px
+                # Daily submissions trend
+                daily_counts = filtered_df.resample('D', on='Timestamp').size().reset_index(name='Count')
+                fig = px.line(daily_counts, x="Timestamp", y="Count", title="Daily Submission Count")
+                st.plotly_chart(fig, use_container_width=True)
+                # Weekly average time saved trend
+                weekly_avg_ts = filtered_df.resample('W', on='Timestamp')["Time Saved"].mean().reset_index()
+                fig2 = px.line(weekly_avg_ts, x="Timestamp", y="Time Saved", title="Weekly Average Time Saved")
+                st.plotly_chart(fig2, use_container_width=True)
         elif stats_selection == 0:
             st.toast("Showing statistics by manager.")
             st.session_state['last_stats_selection'] = 0
@@ -339,6 +354,42 @@ with tab2:
                             "Satisfaction": "Avg Satisfaction"
                         }, inplace=True)
                         st.dataframe(complexity_stats)
+                        
+                        # --- By-Manager: Satisfaction vs Efficiency ---
+                        st.subheader("Satisfaction vs Efficiency")
+                        import plotly.express as px
+                        fig = px.scatter(filtered_df, x="Time Saved", y="Satisfaction", color="AI Tool", hover_data=["Purpose"])
+                        fig.update_layout(title=f"{selected_manager}: Satisfaction vs Time Saved")
+                        st.plotly_chart(fig, use_container_width=True)
+
+                        # --- By-Manager: Purpose vs AI Tool Heatmap ---
+                        st.subheader("Purpose vs AI Tool: Avg Time Saved Heatmap")
+                        heatmap_df_m = filtered_df.pivot_table(
+                            index="Purpose", columns="AI Tool", values="Time Saved", aggfunc="mean"
+                        )
+                        if not heatmap_df_m.empty:
+                            fig_hm = px.imshow(
+                                heatmap_df_m,
+                                text_auto=True,
+                                color_continuous_scale="Blues",
+                                labels=dict(x="AI Tool", y="Purpose", color="Avg Time Saved (min)")
+                            )
+                            fig_hm.update_layout(title=f"{selected_manager}: Avg Time Saved by Purpose & Tool")
+                            st.plotly_chart(fig_hm, use_container_width=True)
+                        else:
+                            st.info("Not enough data for manager-level heatmap.")
+
+                        # --- By-Manager: Trend & Seasonality ---
+                        st.subheader("Trend & Seasonality Analysis")
+                        filtered_df["Timestamp"] = pd.to_datetime(filtered_df["Timestamp"])
+                        # Daily count for this manager
+                        daily_counts_m = filtered_df.resample('D', on='Timestamp').size().reset_index(name='Count')
+                        fig_dc = px.line(daily_counts_m, x="Timestamp", y="Count", title=f"{selected_manager}: Daily Submissions")
+                        st.plotly_chart(fig_dc, use_container_width=True)
+                        # Weekly avg time saved for this manager
+                        weekly_avg_m = filtered_df.resample('W', on='Timestamp')["Time Saved"].mean().reset_index()
+                        fig_wa = px.line(weekly_avg_m, x="Timestamp", y="Time Saved", title=f"{selected_manager}: Weekly Avg Time Saved")
+                        st.plotly_chart(fig_wa, use_container_width=True)
 
 with tab3:
     st.title("AI Tool Usage - Raw Data")
