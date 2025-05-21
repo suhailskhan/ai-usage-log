@@ -40,7 +40,7 @@ tab1, tab2 = st.tabs(["Survey", "Statistics"])
 with tab1:
     st.title("AI Tool Usage - Survey")
 
-    with st.form("usage_form"):
+    with st.form("usage_form", clear_on_submit=True):
         name = st.text_input("Name")
         manager = st.selectbox("Manager", MANAGER_CHOICES)
         ai_tool = st.selectbox("AI Tool", TOOL_CHOICES)
