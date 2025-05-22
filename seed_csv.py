@@ -41,7 +41,7 @@ WORKFLOW_IMPACT_MAP = {
 
 fake = Faker()
 
-CSV_FILE = 'ai_usage_log.csv'
+CSV_FILE = 'data/ai_usage_log.csv'
 FIELDNAMES = [
     'Name', 'Manager', 'AI_Tool', 'Purpose', 'Duration', 'Task_Complexity', 'Satisfaction',
     'Time_Without_AI', 'Workflow_Impact', 'Result_Outcome', 'Notes', 'Timestamp'

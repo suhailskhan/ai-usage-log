@@ -4,7 +4,7 @@ from faker import Faker
 from datetime import datetime, timedelta
 
 # Constants from storage.py and app.py
-DB_FILE = 'ai_usage_log.db'
+DB_FILE = 'data/ai_usage_log.db'
 TABLE_NAME = 'entries'
 
 WORKFLOW_IMPACT_MAP = {
