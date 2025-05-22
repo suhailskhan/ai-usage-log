@@ -93,51 +93,14 @@ See [`.env.example`](.env.example) for a template. All fields are optional excep
 
 ## Screenshots
 
-### Survey
-
-![Survey Screenshot](screenshots/survey.png)
-
 ### All Statistics
 
 ![Statistics Screenshot](screenshots/statistics.png)
-
-### Statistics by Manager
-
-![Statistics by Manager Screenshot](screenshots/statistics%20by%20manager.png)
-
-### Purpose Breakdown & Duration by AI Tool
-
-![Purpose Breakdown & Duration by AI Tool](screenshots/Screenshot%202025-05-21%20at%201.38.55%E2%80%AFPM.png)
-
-### Time Saved Analysis
-
-![Time Saved Analysis](screenshots/Screenshot%202025-05-21%20at%201.39.01%E2%80%AFPM.png)
-
-### Tool Effectiveness Benchmarking & Complexity vs Impact
-
-![Tool Effectiveness Benchmarking & Complexity vs Impact](screenshots/Screenshot%202025-05-21%20at%201.39.08%E2%80%AFPM.png)
-
-### Satisfaction vs Efficiency
-
-![Satisfaction vs Efficiency](screenshots/Screenshot%202025-05-21%20at%201.39.14%E2%80%AFPM.png)
 
 ### Purpose vs AI Tool: Avg Time Saved Heatmap
 
 ![Purpose vs AI Tool: Avg Time Saved Heatmap](screenshots/Screenshot%202025-05-21%20at%201.39.19%E2%80%AFPM.png)
 
-### Trend & Seasonality Analysis
-
-![Trend & Seasonality Analysis](screenshots/Screenshot%202025-05-21%20at%201.39.23%E2%80%AFPM.png)
-
-### Weekly Average Time Saved
-
-![Weekly Average Time Saved](screenshots/Screenshot%202025-05-21%20at%201.39.27%E2%80%AFPM.png)
-
-### Raw Data
-
-![Raw Data Screenshot](screenshots/raw%20data.png)
-
 ### Digest Email
 
 ![Email Screenshot](screenshots/email.png)
-
