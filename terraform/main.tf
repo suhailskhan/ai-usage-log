@@ -530,6 +530,71 @@ resource "aws_ecs_task_definition" "digest" {
   }
 }
 
+# ECS Task Definition for Manual DB Seeding
+resource "aws_ecs_task_definition" "seed_db" {
+  family                   = "ai-usage-log-seed-db"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_execution_role.arn
+  
+  container_definitions = jsonencode([
+    {
+      name      = "ai-usage-log-seed-db"
+      image     = "ghcr.io/suhailskhan/ai-usage-log:latest"
+      essential = true
+      command   = ["python", "seed_db.py"]
+      
+      secrets = [
+        {
+          name      = "MANAGER_CHOICES",
+          valueFrom = "${aws_secretsmanager_secret.app_env.arn}:MANAGER_CHOICES::"
+        },
+        {
+          name      = "TOOL_CHOICES",
+          valueFrom = "${aws_secretsmanager_secret.app_env.arn}:TOOL_CHOICES::"
+        },
+        {
+          name      = "PURPOSE_CHOICES",
+          valueFrom = "${aws_secretsmanager_secret.app_env.arn}:PURPOSE_CHOICES::"
+        },
+        {
+          name      = "STORAGE_TYPE",
+          valueFrom = "${aws_secretsmanager_secret.app_env.arn}:STORAGE_TYPE::"
+        }
+      ]
+      
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = "/ecs/ai-usage-log"
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "seed-db"
+        }
+      }
+      
+      mountPoints = [
+        {
+          sourceVolume  = "efs-data"
+          containerPath = "/app/data"
+          readOnly      = false
+        }
+      ]
+    }
+  ])
+  
+  volume {
+    name = "efs-data"
+    
+    efs_volume_configuration {
+      file_system_id = aws_efs_file_system.ai_usage_log.id
+      root_directory = "/"
+    }
+  }
+}
+
 # CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "ecs_logs" {
   name              = "/ecs/ai-usage-log"
