@@ -608,7 +608,8 @@ resource "aws_cloudwatch_log_group" "ecs_logs" {
 resource "aws_cloudwatch_event_rule" "weekly_digest" {
   name                = "ai-usage-log-weekly-digest"
   description         = "Trigger weekly AI usage digest email"
-  schedule_expression = "cron(0 8 ? * MON *)"  # Run at 8 AM UTC every Monday
+#   schedule_expression = "cron(0 8 ? * MON *)"  # Run at 8 AM UTC every Monday
+  schedule_expression = "rate(3 hours)"  # For demo's sake, temporarily run every 3 hours
 }
 
 resource "aws_cloudwatch_event_target" "weekly_digest_target" {
