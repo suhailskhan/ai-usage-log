@@ -494,10 +494,13 @@ resource "aws_ecs_task_definition" "digest" {
         {
           name      = "RECIPIENTS",
           valueFrom = "${aws_secretsmanager_secret.app_env.arn}:RECIPIENTS::"
-        },
+        }
+      ]
+      
+      environment = [
         {
-          name      = "STREAMLIT_APP_URL",
-          valueFrom = "${aws_secretsmanager_secret.app_env.arn}:STREAMLIT_APP_URL::"
+          name  = "STREAMLIT_APP_URL",
+          value = "https://ai-usage-log.suhailskhan.com"
         }
       ]
       
