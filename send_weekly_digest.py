@@ -116,10 +116,7 @@ Subject: Weekly AI Usage Digest\nTo: {recipient}\nMIME-Version: 1.0\nContent-Typ
             server.sendmail(SMTP_USERNAME, recipient, message)
 
 def main():
-    send_email
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
+    send_email()
 
 if __name__ == "__main__":
     main()
