@@ -2,8 +2,8 @@ import os
 import sqlite3
 import pandas as pd
 
-CSV_FILE = 'ai_usage_log.csv'
-DB_FILE = 'ai_usage_log.db'
+CSV_FILE = 'data/ai_usage_log.csv'
+DB_FILE = 'data/ai_usage_log.db'
 
 class Storage:
     def load(self):
