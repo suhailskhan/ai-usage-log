@@ -129,12 +129,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      # TODO: Replace above step with this
-      # - name: Set up OpenTofu
-      #   uses: hashicorp/setup-opentofu@v1
+      - name: Set up OpenTofu
+        uses: hashicorp/setup-opentofu@v1
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -143,15 +139,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ needs.set-deployment-variables.outputs.aws_region }}
 
-      - name: Initialize Terraform
+      - name: Initialize Tofu
         run: |
-          cd terraform
-          terraform init
+          tofu -chdir=infra init
 
-      - name: Terraform Plan
+      - name: Tofu Plan
         run: |
-          cd terraform
-          terraform plan \
+          tofu -chdir=infra plan \
             -var="aws_region=${{ needs.set-deployment-variables.outputs.aws_region }}" \
             -var="environment=dev" \
             -var="cloudflare_api_token=${{ secrets.CLOUDFLARE_API_TOKEN }}" \
@@ -159,20 +153,12 @@ jobs:
             -var="domain_name=${{ needs.set-deployment-variables.outputs.domain_name }}" \
             -var="subdomain=${{ needs.set-deployment-variables.outputs.subdomain }}"
 
-      - name: Terraform Apply
+      - name: Tofu Apply
         run: |
-          cd terraform
-          terraform apply -auto-approve \
+          tofu -chdir=infra apply -auto-approve \
             -var="aws_region=${{ needs.set-deployment-variables.outputs.aws_region }}" \
             -var="environment=dev" \
             -var="cloudflare_api_token=${{ secrets.CLOUDFLARE_API_TOKEN }}" \
             -var="cloudflare_zone_id=${{ secrets.CLOUDFLARE_ZONE_ID }}" \
             -var="domain_name=${{ needs.set-deployment-variables.outputs.domain_name }}" \
             -var="subdomain=${{ needs.set-deployment-variables.outputs.subdomain }}"
-
-      # TODO: Replace above three steps with these
-      # - name: Initialize Tofu
-
-      # - name: Tofu Plan
-
-      # - name: Tofu Apply

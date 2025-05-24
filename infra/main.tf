@@ -717,7 +717,6 @@ resource "cloudflare_record" "ai_usage_log_ns_1" {
   name    = var.subdomain
   content = aws_route53_zone.ai_usage_log.name_servers[0]
   type    = "NS"
-  ttl     = 300
 }
 
 resource "cloudflare_record" "ai_usage_log_ns_2" {
@@ -725,7 +724,6 @@ resource "cloudflare_record" "ai_usage_log_ns_2" {
   name    = var.subdomain
   content = aws_route53_zone.ai_usage_log.name_servers[1]
   type    = "NS"
-  ttl     = 300
 }
 
 resource "cloudflare_record" "ai_usage_log_ns_3" {
@@ -733,7 +731,6 @@ resource "cloudflare_record" "ai_usage_log_ns_3" {
   name    = var.subdomain
   content = aws_route53_zone.ai_usage_log.name_servers[2]
   type    = "NS"
-  ttl     = 300
 }
 
 resource "cloudflare_record" "ai_usage_log_ns_4" {
@@ -741,5 +738,4 @@ resource "cloudflare_record" "ai_usage_log_ns_4" {
   name    = var.subdomain
   content = aws_route53_zone.ai_usage_log.name_servers[3]
   type    = "NS"
-  ttl     = 300
 }

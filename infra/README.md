@@ -1,6 +1,6 @@
-# AI Usage Log - Terraform Configuration
+# AI Usage Log - OpenTofu/Terraform Configuration
 
-This directory contains Terraform configurations for deploying the AI Usage Log application on AWS Fargate.
+This directory contains OpenTofu/Terraform configurations for deploying the AI Usage Log application on AWS Fargate.
 
 ## Architecture
 
@@ -74,27 +74,29 @@ This setup uses a hybrid DNS approach combining Amazon Route 53 and Cloudflare:
 ### Understanding the DNS Flow
 
 1. **Cloudflare** manages your root domain (e.g., `suhailskhan.com`)
-2. **Terraform** creates a Route 53 hosted zone for your subdomain (e.g., `ai-usage-log.suhailskhan.com`)
-3. **Terraform** automatically creates NS records in Cloudflare pointing the subdomain to AWS nameservers
+2. **OpenTofu/Terraform** creates a Route 53 hosted zone for your subdomain (e.g., `ai-usage-log.suhailskhan.com`)
+3. **OpenTofu/Terraform** automatically creates NS records in Cloudflare pointing the subdomain to AWS nameservers
 4. **Route 53** takes full control of DNS for the subdomain and integrates with the ALB
 5. **ACM** validates the SSL certificate using DNS validation in Route 53
 6. **Traffic flows directly** from users → Route 53 → ALB
 
 ## Deployment Steps
 
-1. Initialize Terraform:
+The following steps use OpenTofu, but you may substitute the commands with Terraform commands.
+
+1. Initialize OpenTofu:
    ```
-   terraform init
+   tofu init
    ```
 
 2. Review the plan:
    ```
-   terraform plan
+   tofu plan
    ```
 
 3. Apply the configuration:
    ```
-   terraform apply
+   tofu apply
    ```
 
 4. Store environment variables in AWS Secrets Manager:
@@ -144,5 +146,5 @@ curl -I https://ai-usage-log.suhailskhan.com
 
 To destroy all created resources:
 ```
-terraform destroy
+tofu destroy
 ```

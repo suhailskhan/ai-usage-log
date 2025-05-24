@@ -5,7 +5,7 @@ subdomain   = "ai-usage-log"
 
 # Cloudflare Configuration
 # Get your API token from: https://dash.cloudflare.com/profile/api-tokens
-# The token needs Zone:Edit permissions for suhailskhan.com
+# The token needs Zone:Edit permissions for your domain
 cloudflare_api_token = "your-cloudflare-api-token-here"
 
 # Get your zone ID from the Cloudflare Dashboard

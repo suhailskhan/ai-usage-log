@@ -1,0 +1,13 @@
+aws_region  = "us-east-1"
+environment = "dev"
+domain_name = "suhailskhan.com"
+subdomain   = "ai-usage-log"
+
+# Cloudflare Configuration
+# Get your API token from: https://dash.cloudflare.com/profile/api-tokens
+# The token needs Zone:Edit permissions for your domain
+cloudflare_api_token = "your-cloudflare-api-token-here"
+
+# Get your zone ID from the Cloudflare Dashboard
+# Found in the domain overview page, right sidebar
+cloudflare_zone_id = "your-cloudflare-zone-id-here"
