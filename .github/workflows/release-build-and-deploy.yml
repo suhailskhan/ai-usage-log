@@ -1,0 +1,178 @@
+name: Release, Build, and Deploy
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract release notes from changelog
+        id: changelog
+        run: |
+          # Extract release notes for the current tag from CHANGELOG.md
+          TAG_NAME="${{ github.ref_name }}"
+
+          # Find the section for this version in the changelog
+          awk -v tag="## [$TAG_NAME]" '
+          BEGIN { found=0; notes="" }
+          $0 ~ tag { found=1; next }
+          found && /^## \[/ { found=0 }
+          found && !/^\[.*\]:/ { 
+            if (notes != "") notes = notes "\n"
+            notes = notes $0 
+          }
+          END { print notes }
+          ' CHANGELOG.md > release_notes.txt
+
+          # Set the release notes as output
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          cat release_notes.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.notes }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-push:
+    name: Build Container Image and Push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=ref,event=branch
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  set-deployment-variables:
+    name: Set Deployment Variables
+    runs-on: ubuntu-latest
+    outputs:
+      app_url: ${{ steps.vars.outputs.app_url }}
+      aws_region: ${{ steps.vars.outputs.aws_region }}
+      domain_name: ${{ steps.vars.outputs.domain_name }}
+      subdomain: ${{ steps.vars.outputs.subdomain }}
+
+    steps:
+      - id: vars
+        run: |
+          AWS_REGION="${{ vars.AWS_REGION || 'us-east-1' }}"
+          DOMAIN_NAME="${{ vars.DOMAIN_NAME || 'suhailskhan.com' }}"
+          SUBDOMAIN="${{ vars.SUBDOMAIN || 'ai-usage-log' }}"
+          APP_URL="https://${SUBDOMAIN}.${DOMAIN_NAME}"
+
+          echo "aws_region=$AWS_REGION" >> $GITHUB_OUTPUT
+          echo "domain_name=$DOMAIN_NAME" >> $GITHUB_OUTPUT
+          echo "subdomain=$SUBDOMAIN" >> $GITHUB_OUTPUT
+          echo "app_url=$APP_URL" >> $GITHUB_OUTPUT
+
+          echo "App will be deployed to: $APP_URL"
+
+  deploy:
+    name: Deploy to AWS
+    needs: [build-and-push, set-deployment-variables]
+    runs-on: ubuntu-latest
+    environment:
+      name: dev
+      url: ${{ needs.set-deployment-variables.outputs.app_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # TODO: Replace above step with this
+      # - name: Set up OpenTofu
+      #   uses: hashicorp/setup-opentofu@v1
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ needs.set-deployment-variables.outputs.aws_region }}
+
+      - name: Initialize Terraform
+        run: |
+          cd terraform
+          terraform init
+
+      - name: Terraform Plan
+        run: |
+          cd terraform
+          terraform plan \
+            -var="aws_region=${{ needs.set-deployment-variables.outputs.aws_region }}" \
+            -var="environment=dev" \
+            -var="cloudflare_api_token=${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -var="cloudflare_zone_id=${{ secrets.CLOUDFLARE_ZONE_ID }}" \
+            -var="domain_name=${{ needs.set-deployment-variables.outputs.domain_name }}" \
+            -var="subdomain=${{ needs.set-deployment-variables.outputs.subdomain }}"
+
+      - name: Terraform Apply
+        run: |
+          cd terraform
+          terraform apply -auto-approve \
+            -var="aws_region=${{ needs.set-deployment-variables.outputs.aws_region }}" \
+            -var="environment=dev" \
+            -var="cloudflare_api_token=${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -var="cloudflare_zone_id=${{ secrets.CLOUDFLARE_ZONE_ID }}" \
+            -var="domain_name=${{ needs.set-deployment-variables.outputs.domain_name }}" \
+            -var="subdomain=${{ needs.set-deployment-variables.outputs.subdomain }}"
+
+      # TODO: Replace above three steps with these
+      # - name: Initialize Tofu
+
+      # - name: Tofu Plan
+
+      # - name: Tofu Apply

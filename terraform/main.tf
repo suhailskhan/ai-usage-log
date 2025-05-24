@@ -4,18 +4,28 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.0"
+    }
   }
   
-  # Uncomment this block to configure remote state storage with S3
-  # backend "s3" {
-  #   bucket = "your-terraform-state-bucket"
-  #   key    = "ai-usage-log/terraform.tfstate"
-  #   region = "us-west-2"
-  # }
+  backend "s3" {
+    bucket = "ai-usage-state"
+    key    = "ai-usage-log/terraform.tfstate"
+  }
 }
 
 provider "aws" {
   region = var.aws_region
+}
+
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
+
+locals {
+  full_domain_name = "${var.subdomain}.${var.domain_name}"
 }
 
 # Network resources
@@ -287,7 +297,7 @@ resource "aws_lb_listener" "http" {
 }
 
 resource "aws_acm_certificate" "ai_usage_log" {
-  domain_name       = "ai-usage-log.suhailskhan.com"
+  domain_name       = local.full_domain_name
   validation_method = "DNS"
   lifecycle {
     create_before_destroy = true
@@ -364,6 +374,10 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "STREAMLIT_SERVER_HEADLESS",
           value = "true"
+        },
+        {
+          name  = "STREAMLIT_APP_URL",
+          value = "https://${local.full_domain_name}"
         }
       ]
       
@@ -500,7 +514,7 @@ resource "aws_ecs_task_definition" "digest" {
       environment = [
         {
           name  = "STREAMLIT_APP_URL",
-          value = "https://ai-usage-log.suhailskhan.com"
+          value = "https://${local.full_domain_name}"
         }
       ]
       
@@ -683,16 +697,49 @@ resource "aws_iam_role_policy_attachment" "events_policy_attachment" {
 
 # Route53 Hosted Zone
 resource "aws_route53_zone" "ai_usage_log" {
-  name = "ai-usage-log.suhailskhan.com"
+  name = local.full_domain_name
 }
 
 resource "aws_route53_record" "alb_alias" {
   zone_id = aws_route53_zone.ai_usage_log.id
-  name    = "ai-usage-log.suhailskhan.com"
+  name    = local.full_domain_name
   type    = "A"
   alias {
     name                   = aws_lb.main.dns_name
     zone_id                = aws_lb.main.zone_id
     evaluate_target_health = true
   }
+}
+
+# Cloudflare NS records for delegating ai-usage-log subdomain to Route53
+resource "cloudflare_record" "ai_usage_log_ns_1" {
+  zone_id = var.cloudflare_zone_id
+  name    = var.subdomain
+  content = aws_route53_zone.ai_usage_log.name_servers[0]
+  type    = "NS"
+  ttl     = 300
+}
+
+resource "cloudflare_record" "ai_usage_log_ns_2" {
+  zone_id = var.cloudflare_zone_id
+  name    = var.subdomain
+  content = aws_route53_zone.ai_usage_log.name_servers[1]
+  type    = "NS"
+  ttl     = 300
+}
+
+resource "cloudflare_record" "ai_usage_log_ns_3" {
+  zone_id = var.cloudflare_zone_id
+  name    = var.subdomain
+  content = aws_route53_zone.ai_usage_log.name_servers[2]
+  type    = "NS"
+  ttl     = 300
+}
+
+resource "cloudflare_record" "ai_usage_log_ns_4" {
+  zone_id = var.cloudflare_zone_id
+  name    = var.subdomain
+  content = aws_route53_zone.ai_usage_log.name_servers[3]
+  type    = "NS"
+  ttl     = 300
 }

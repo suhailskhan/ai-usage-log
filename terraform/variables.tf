@@ -9,3 +9,26 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token with Zone:Edit permissions"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare Zone ID"
+  type        = string
+}
+
+variable "domain_name" {
+  description = "The main domain name (e.g., suhailskhan.com)"
+  type        = string
+  default     = "suhailskhan.com"
+}
+
+variable "subdomain" {
+  description = "The subdomain to use for the app"
+  type        = string
+  default     = "ai-usage-log"
+}

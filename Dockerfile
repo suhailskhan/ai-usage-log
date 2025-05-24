@@ -16,11 +16,10 @@ RUN apt-get update && \
         git \
     && rm -rf /var/lib/apt/lists/*
 
-COPY *.py .
-COPY requirements.txt .
+COPY *.py requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 8501
 
-# Default command (can be overridden in ECS task definition)
+# Default command (can be overridden in ECS task definition when performing tf deployment)
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--global.developmentMode=false"]
