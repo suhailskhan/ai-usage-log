@@ -238,50 +238,74 @@ tab1, tab2, tab3 = st.tabs(["Survey", "Statistics", "Raw Data"])
 with tab1:
     st.title("AI Tool Usage - Survey")
 
+    # Check if we have a duplicated entry to pre-fill
+    duplicate_data = st.session_state.get('duplicate_entry', {})
+    
+    # Show a message if form is pre-filled from duplication
+    if duplicate_data:
+        st.info("📋 Form pre-filled from duplicated entry. You can modify any fields before submitting.")
+
     with st.form("usage_form", clear_on_submit=True):
-        name = st.text_input("Name")
+        name = st.text_input("Name", value=duplicate_data.get('name', ''))
         manager = st.multiselect(
             "Manager",
             MANAGER_CHOICES,
+            default=duplicate_data.get('manager', []),
             max_selections=1,
             accept_new_options=True,
         )
         ai_tool = st.multiselect(
             "AI Tool",
             TOOL_CHOICES,
+            default=duplicate_data.get('ai_tool', []),
             max_selections=1,
             accept_new_options=True,
         )
         purpose = st.multiselect(
             "Purpose",
             PURPOSE_CHOICES,
+            default=duplicate_data.get('purpose', []),
             max_selections=1,
             accept_new_options=True,
         )
-        duration = st.number_input("Duration (minutes)", min_value=0)
+        duration = st.number_input("Duration (minutes)", min_value=0, value=duplicate_data.get('duration', 0))
+        complexity_options = ["(Select complexity)", "Easy", "Medium", "Hard"]
+        complexity_default_index = 0
+        if duplicate_data.get('complexity') in complexity_options:
+            complexity_default_index = complexity_options.index(duplicate_data.get('complexity'))
         complexity = st.selectbox(
             "What was the complexity level of the task?",
-            ["(Select complexity)", "Easy", "Medium", "Hard"]
+            complexity_options,
+            index=complexity_default_index
         )
-        satisfaction = st.slider("Rate your confidence in the tools’s final output.", 1, 5, 3)
-        time_without_ai = st.number_input("About how much time might the task have taken you to complete without AI assistance? (minutes)", min_value=0)
+        satisfaction = st.slider("Rate your confidence in the tools's final output.", 1, 5, duplicate_data.get('satisfaction', 3))
+        time_without_ai = st.number_input("About how much time might the task have taken you to complete without AI assistance? (minutes)", min_value=0, value=duplicate_data.get('time_without_ai', 0))
+        workflow_impact_options = [
+            "(Select impact)",
+            "Little to none",
+            "Minor improvement",
+            "Moderate improvement",
+            "Considerable improvement",
+            "Significant improvement"
+        ]
+        workflow_impact_default_index = 0
+        if duplicate_data.get('workflow_impact') in workflow_impact_options:
+            workflow_impact_default_index = workflow_impact_options.index(duplicate_data.get('workflow_impact'))
         workflow_impact = st.selectbox(
             "Estimate the impact that this use of AI tools has had on your overall workflow.",
-            [
-                "(Select impact)",
-                "Little to none",
-                "Minor improvement",
-                "Moderate improvement",
-                "Considerable improvement",
-                "Significant improvement"
-            ]
+            workflow_impact_options,
+            index=workflow_impact_default_index
         )
-        result = st.text_input("Describe the result/outcome.")
-        notes = st.text_area("Additional notes (optional):")
+        result = st.text_input("Describe the result/outcome.", value=duplicate_data.get('result', ''))
+        notes = st.text_area("Additional notes (optional):", value=duplicate_data.get('notes', ''))
         submitted = st.form_submit_button("Submit")
 
         # Make all fields except notes mandatory
         if submitted:
+            # Clear the duplicate data after form submission attempt
+            if 'duplicate_entry' in st.session_state:
+                del st.session_state.duplicate_entry
+                
             # Extract single values from multiselects
             manager_val = manager[0] if manager else ""
             ai_tool_val = ai_tool[0] if ai_tool else ""
@@ -355,10 +379,68 @@ with tab2:
 with tab3:
     st.title("AI Tool Usage - Raw Data")
     df = prepare_dataframe(st.session_state.entries)
-    st.subheader("Data:")
+    
     if df.empty:
         st.write("No submissions yet.")
     else:
-        st.dataframe(df)
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.info("To download a CSV of this data, hover over the table and click the Download button at the top right.")
+        st.subheader("Data:")
+        st.markdown("💡 **Tip:** Click the checkbox (appears on hover) at the far left of any row to select it → Duplicate button will appear")
+            
+        # Enable row selection for duplication
+        event = st.dataframe(
+            df,
+            on_select="rerun",
+            selection_mode="single-row"
+        )
+        
+        # Show duplicate button when a row is selected
+        if event.selection.rows:
+            selected_index = event.selection.rows[0]
+            selected_entry = df.iloc[selected_index]
+            
+            if st.button("📋 Duplicate Selected Entry", help="This will pre-fill the survey with data from the selected entry"):
+                # Store the selected entry data in session state for form pre-filling
+                original_entry = st.session_state.entries[selected_index]
+                
+                # Handle manager - only include if it's in the current choices, otherwise empty
+                manager_val = original_entry['Manager']
+                manager_default = [manager_val] if manager_val in MANAGER_CHOICES else []
+                
+                # Handle AI tool - only include if it's in the current choices, otherwise empty
+                ai_tool_val = original_entry['AI Tool']
+                ai_tool_default = [ai_tool_val] if ai_tool_val in TOOL_CHOICES else []
+                
+                # Handle purpose - only include if it's in the current choices, otherwise empty
+                purpose_val = original_entry['Purpose']
+                purpose_default = [purpose_val] if purpose_val in PURPOSE_CHOICES else []
+                
+                st.session_state.duplicate_entry = {
+                    'name': original_entry['Name'],
+                    'manager': manager_default,
+                    'ai_tool': ai_tool_default,
+                    'purpose': purpose_default,
+                    'duration': original_entry['Duration'],
+                    'complexity': REVERSE_TASK_COMPLEXITY_MAP.get(original_entry['Task Complexity'], 'Easy'),
+                    'satisfaction': original_entry['Satisfaction'],
+                    'time_without_ai': original_entry['Time Without AI'],
+                    'workflow_impact': REVERSE_WORKFLOW_IMPACT_MAP.get(original_entry['Workflow Impact'], 'Little to none'),
+                    'result': original_entry['Result/Outcome'],
+                    'notes': original_entry.get('Notes', '')
+                }
+                
+                # Format the date from the timestamp
+                timestamp = original_entry['Timestamp']
+                if isinstance(timestamp, str):
+                    try:
+                        date_obj = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        formatted_date = date_obj.strftime('%m/%d/%Y')
+                    except:
+                        formatted_date = timestamp.split('T')[0] if 'T' in timestamp else timestamp
+                else:
+                    formatted_date = str(timestamp)
+                
+                name = original_entry['Name']
+                st.toast(f"{name}'s entry from {formatted_date} has been copied. Switch to the Survey tab to submit.", icon="📋")
+        
+        # Use a subtle caption instead of st.info for download instruction
+        st.caption("💾 To download CSV: hover over the table and click the Download button at the top right.")
