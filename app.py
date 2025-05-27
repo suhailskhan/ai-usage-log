@@ -384,7 +384,7 @@ with tab3:
         st.write("No submissions yet.")
     else:
         st.subheader("Data:")
-        st.markdown("💡 **Tip:** Click the checkbox (appears on hover) at the far left of any row to select it → Duplicate button will appear")
+        st.markdown("💡 **Tip:** Click the checkbox (appears on hover) at the far left of any row to select it → Duplicate, Edit, and Delete buttons will appear")
             
         # Enable row selection for duplication
         event = st.dataframe(
@@ -393,13 +393,13 @@ with tab3:
             selection_mode="single-row"
         )
         
-        # Show duplicate and delete buttons when a row is selected
+        # Show duplicate, edit, and delete buttons when a row is selected
         if event.selection.rows:
             selected_index = event.selection.rows[0]
             selected_entry = df.iloc[selected_index]
             
-            # Create two columns for the buttons
-            col1, col2 = st.columns(2)
+            # Create three columns for the buttons
+            col1, col2, col3 = st.columns(3)
             
             with col1:
                 if st.button("📋 Duplicate Selected Entry", help="This will pre-fill the survey with data from the selected entry"):
@@ -447,6 +447,39 @@ with tab3:
                     st.toast(f"{name}'s entry from {formatted_date} has been copied. Switch to the Survey tab to submit.", icon="📋")
             
             with col2:
+                if st.button("✏️ Edit Selected Entry", help="This will open an edit form for the selected entry"):
+                    # Store the selected entry data in session state for editing
+                    original_entry = st.session_state.entries[selected_index]
+                    
+                    # Handle manager - only include if it's in the current choices, otherwise empty
+                    manager_val = original_entry['Manager']
+                    manager_default = [manager_val] if manager_val in MANAGER_CHOICES else []
+                    
+                    # Handle AI tool - only include if it's in the current choices, otherwise empty
+                    ai_tool_val = original_entry['AI Tool']
+                    ai_tool_default = [ai_tool_val] if ai_tool_val in TOOL_CHOICES else []
+                    
+                    # Handle purpose - only include if it's in the current choices, otherwise empty
+                    purpose_val = original_entry['Purpose']
+                    purpose_default = [purpose_val] if purpose_val in PURPOSE_CHOICES else []
+                    
+                    st.session_state.edit_entry = {
+                        'index': selected_index,
+                        'name': original_entry['Name'],
+                        'manager': manager_default,
+                        'ai_tool': ai_tool_default,
+                        'purpose': purpose_default,
+                        'duration': original_entry['Duration'],
+                        'complexity': REVERSE_TASK_COMPLEXITY_MAP.get(original_entry['Task Complexity'], 'Easy'),
+                        'satisfaction': original_entry['Satisfaction'],
+                        'time_without_ai': original_entry['Time Without AI'],
+                        'workflow_impact': REVERSE_WORKFLOW_IMPACT_MAP.get(original_entry['Workflow Impact'], 'Little to none'),
+                        'result': original_entry['Result/Outcome'],
+                        'notes': original_entry.get('Notes', '')
+                    }
+                    st.rerun()
+            
+            with col3:
                 if st.button("🗑️ Delete Selected Entry", help="This will permanently delete the selected entry", type="secondary"):
                     # Show confirmation dialog
                     original_entry = st.session_state.entries[selected_index]
@@ -490,5 +523,116 @@ with tab3:
                     if st.button("❌ Cancel"):
                         del st.session_state.entry_to_delete
                         st.rerun()
+
+        # Show edit form if an entry is being edited
+        if 'edit_entry' in st.session_state:
+            edit_data = st.session_state.edit_entry
+            st.divider()
+            st.subheader("Edit Entry")
+            st.info("✏️ Modify the fields below and click 'Save Changes' to update the entry.")
+            
+            with st.form("edit_form"):
+                edit_name = st.text_input("Name", value=edit_data.get('name', ''))
+                edit_manager = st.multiselect(
+                    "Manager",
+                    MANAGER_CHOICES,
+                    default=edit_data.get('manager', []),
+                    max_selections=1,
+                    accept_new_options=True,
+                )
+                edit_ai_tool = st.multiselect(
+                    "AI Tool",
+                    TOOL_CHOICES,
+                    default=edit_data.get('ai_tool', []),
+                    max_selections=1,
+                    accept_new_options=True,
+                )
+                edit_purpose = st.multiselect(
+                    "Purpose",
+                    PURPOSE_CHOICES,
+                    default=edit_data.get('purpose', []),
+                    max_selections=1,
+                    accept_new_options=True,
+                )
+                edit_duration = st.number_input("Duration (minutes)", min_value=0, value=edit_data.get('duration', 0))
+                complexity_options = ["(Select complexity)", "Easy", "Medium", "Hard"]
+                complexity_default_index = 0
+                if edit_data.get('complexity') in complexity_options:
+                    complexity_default_index = complexity_options.index(edit_data.get('complexity'))
+                edit_complexity = st.selectbox(
+                    "What was the complexity level of the task?",
+                    complexity_options,
+                    index=complexity_default_index
+                )
+                edit_satisfaction = st.slider("Rate your confidence in the tools's final output.", 1, 5, edit_data.get('satisfaction', 3))
+                edit_time_without_ai = st.number_input("About how much time might the task have taken you to complete without AI assistance? (minutes)", min_value=0, value=edit_data.get('time_without_ai', 0))
+                workflow_impact_options = [
+                    "(Select impact)",
+                    "Little to none",
+                    "Minor improvement",
+                    "Moderate improvement",
+                    "Considerable improvement",
+                    "Significant improvement"
+                ]
+                workflow_impact_default_index = 0
+                if edit_data.get('workflow_impact') in workflow_impact_options:
+                    workflow_impact_default_index = workflow_impact_options.index(edit_data.get('workflow_impact'))
+                edit_workflow_impact = st.selectbox(
+                    "Estimate the impact that this use of AI tools has had on your overall workflow.",
+                    workflow_impact_options,
+                    index=workflow_impact_default_index
+                )
+                edit_result = st.text_input("Describe the result/outcome.", value=edit_data.get('result', ''))
+                edit_notes = st.text_area("Additional notes (optional):", value=edit_data.get('notes', ''))
+                
+                # Form buttons
+                col1, col2 = st.columns(2)
+                with col1:
+                    save_changes = st.form_submit_button("💾 Save Changes", type="primary")
+                with col2:
+                    cancel_edit = st.form_submit_button("❌ Cancel Edit")
+
+                if save_changes:
+                    # Extract single values from multiselects
+                    manager_val = edit_manager[0] if edit_manager else ""
+                    ai_tool_val = edit_ai_tool[0] if edit_ai_tool else ""
+                    purpose_val = edit_purpose[0] if edit_purpose else ""
+                    complexity_val = edit_complexity if edit_complexity != "(Select complexity)" else ""
+                    complexity_num = TASK_COMPLEXITY_MAP.get(complexity_val, None)
+                    workflow_impact_val = edit_workflow_impact if edit_workflow_impact != "(Select impact)" else ""
+                    workflow_impact_num = WORKFLOW_IMPACT_MAP.get(workflow_impact_val, None)
+                    
+                    is_valid, error_message = validate_form_submission(
+                        edit_name, manager_val, ai_tool_val, purpose_val, edit_result, 
+                        complexity_val, edit_satisfaction, edit_time_without_ai, 
+                        workflow_impact_val, edit_duration, workflow_impact_num, complexity_num
+                    )
+                    
+                    if not is_valid:
+                        st.toast("There was a problem with saving changes.", icon="⚠️")
+                        st.warning(error_message)
+                    else:
+                        # Get the original timestamp to preserve it
+                        original_entry = st.session_state.entries[edit_data['index']]
+                        
+                        # Update the entry
+                        updated_entry = create_entry_dict(
+                            edit_name, manager_val, ai_tool_val, purpose_val, edit_duration, 
+                            complexity_num, edit_satisfaction, edit_time_without_ai, 
+                            workflow_impact_num, edit_result, edit_notes
+                        )
+                        # Preserve the original timestamp
+                        updated_entry['Timestamp'] = original_entry['Timestamp']
+                        
+                        # Replace the entry in the list
+                        st.session_state.entries[edit_data['index']] = updated_entry
+                        save_entries(st.session_state.entries)
+                        del st.session_state.edit_entry
+                        st.toast("Entry updated successfully!", icon="✅")
+                        st.rerun()
+
+                if cancel_edit:
+                    del st.session_state.edit_entry
+                    st.rerun()
 
         st.caption("💾 To download CSV: hover over the table and click the Download button at the top right.")
