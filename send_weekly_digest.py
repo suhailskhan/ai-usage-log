@@ -10,6 +10,12 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import io
 import base64
+from analytics_utils import (
+    prepare_dataframe,
+    filter_last_n_days,
+    calculate_basic_stats,
+    create_pivot_table
+)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -27,44 +33,45 @@ def fetch_stats():
     entries = storage.load()
     if not entries:
         return "No usage data available for the past week.", []
-    df = pd.DataFrame(entries)
-    # Ensure Timestamp is datetime
-    df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce")
-    # Filter for the past 7 days
-    one_week_ago = datetime.now() - timedelta(days=7)
-    df = df[df["Timestamp"] >= one_week_ago]
+    
+    # Prepare and filter dataframe
+    df = prepare_dataframe(entries)
+    df = filter_last_n_days(df, 7)
+    
     if df.empty:
         return "No usage data available for the past week.", []
-    # Compute average time saved
-    df["Time Saved"] = df["Time Without AI"] - df["Duration"]
-    avg_time_saved = df["Time Saved"].mean()
-    # Compute average usage duration per tool
-    avg_duration_per_tool = df.groupby("AI Tool")["Duration"].mean()
+    
+    # Calculate basic stats using shared utility
+    basic_stats = calculate_basic_stats(df)
+    
     # Format stats
     stats = f"Here are this week's stats (past 7 days):\n"
-    stats += f"- Average time saved per task: {avg_time_saved:.1f} minutes\n"
+    stats += f"- Average time saved per task: {basic_stats.get('avg_time_saved', 0):.1f} minutes\n"
     stats += "- Average usage duration per tool:\n"
-    for tool, avg in avg_duration_per_tool.items():
+    for tool, avg in basic_stats.get('avg_duration_per_tool', {}).items():
         stats += f"    - {tool}: {avg:.1f} minutes\n"
 
     # --- Matplotlib charts ---
     chart_imgs = []
     # 1. Pie chart: Distribution by Purpose
-    if 'Purpose' in df.columns:
-        purpose_counts = df['Purpose'].value_counts()
+    purpose_distribution = basic_stats.get('purpose_distribution', {})
+    if purpose_distribution:
         fig1, ax1 = plt.subplots()
-        ax1.pie(purpose_counts, labels=purpose_counts.index, autopct='%1.1f%%', startangle=90)
+        ax1.pie(purpose_distribution.values(), labels=purpose_distribution.keys(), autopct='%1.1f%%', startangle=90)
         buf1 = io.BytesIO()
         plt.savefig(buf1, format='png', bbox_inches='tight')
         plt.close(fig1)
         buf1.seek(0)
         img1 = base64.b64encode(buf1.read()).decode('utf-8')
         chart_imgs.append(("Purpose Distribution", img1))
+    
     # 2. Bar chart: Duration by AI Tool
-    if 'AI Tool' in df.columns:
-        tool_duration = df.groupby('AI Tool')["Duration"].sum()
+    total_duration_per_tool = basic_stats.get('total_duration_per_tool', {})
+    if total_duration_per_tool:
         fig2, ax2 = plt.subplots()
-        tool_duration.plot(kind='bar', ax=ax2)
+        tools = list(total_duration_per_tool.keys())
+        durations = list(total_duration_per_tool.values())
+        ax2.bar(tools, durations)
         ax2.set_ylabel('Total Duration (min)')
         buf2 = io.BytesIO()
         plt.savefig(buf2, format='png', bbox_inches='tight')
@@ -72,25 +79,21 @@ def fetch_stats():
         buf2.seek(0)
         img2 = base64.b64encode(buf2.read()).decode('utf-8')
         chart_imgs.append(("Total Duration by AI Tool", img2))
+    
     # 3. Heatmap: Average Time Saved by Purpose and AI Tool
-    if 'Purpose' in df.columns and 'AI Tool' in df.columns and 'Time Saved' in df.columns:
-        heatmap_df = df.pivot_table(
-            index="Purpose",
-            columns="AI Tool",
-            values="Time Saved",
-            aggfunc="mean"
-        )
-        if not heatmap_df.empty:
-            fig3, ax3 = plt.subplots(figsize=(6, 4))
-            import seaborn as sns
-            sns.heatmap(heatmap_df, annot=True, fmt=".1f", cmap="Blues", cbar_kws={'label': 'Avg Time Saved (min)'}, ax=ax3)
-            buf3 = io.BytesIO()
-            plt.tight_layout()
-            plt.savefig(buf3, format='png', bbox_inches='tight')
-            plt.close(fig3)
-            buf3.seek(0)
-            img3 = base64.b64encode(buf3.read()).decode('utf-8')
-            chart_imgs.append(("Average Time Saved by Purpose and AI Tool", img3))
+    heatmap_df = create_pivot_table(df, "Purpose", "AI Tool", "Time Saved")
+    if heatmap_df is not None and not heatmap_df.empty:
+        fig3, ax3 = plt.subplots(figsize=(6, 4))
+        import seaborn as sns
+        sns.heatmap(heatmap_df, annot=True, fmt=".1f", cmap="Blues", cbar_kws={'label': 'Avg Time Saved (min)'}, ax=ax3)
+        buf3 = io.BytesIO()
+        plt.tight_layout()
+        plt.savefig(buf3, format='png', bbox_inches='tight')
+        plt.close(fig3)
+        buf3.seek(0)
+        img3 = base64.b64encode(buf3.read()).decode('utf-8')
+        chart_imgs.append(("Average Time Saved by Purpose and AI Tool", img3))
+    
     return stats, chart_imgs
 
 def send_email():

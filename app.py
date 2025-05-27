@@ -19,6 +19,14 @@ st.set_page_config(page_title="AI Tool Usage", page_icon="📊")
 import pandas as pd
 from storage import get_storage
 import datetime
+from analytics_utils import (
+    prepare_dataframe as analytics_prepare_dataframe,
+    calculate_tool_effectiveness,
+    calculate_complexity_analysis,
+    calculate_manager_insights,
+    calculate_purpose_insights,
+    create_pivot_table
+)
 
 # Set storage type here
 storage = get_storage(STORAGE_TYPE)
@@ -28,6 +36,124 @@ def load_entries():
 
 def save_entries(entries):
     storage.save(entries)
+
+# Helper functions for statistics visualization
+def prepare_dataframe(entries):
+    """Prepare and clean the dataframe for analysis"""
+    return analytics_prepare_dataframe(entries, REVERSE_WORKFLOW_IMPACT_MAP, REVERSE_TASK_COMPLEXITY_MAP)
+
+def create_purpose_distribution_chart(filtered_df):
+    """Create purpose distribution pie chart"""
+    st.subheader("Distribution by Purpose")
+    import plotly.express as px
+    purpose_counts = filtered_df['Purpose'].value_counts().reset_index()
+    purpose_counts.columns = ['Purpose', 'Count']
+    fig = px.pie(purpose_counts, names='Purpose', values='Count', title='Purpose Distribution')
+    st.plotly_chart(fig, use_container_width=True)
+
+def create_heatmap_chart(filtered_df, title_prefix=""):
+    """Create purpose vs AI tool heatmap"""
+    st.subheader("Purpose vs AI Tool: Average Time Saved Heatmap")
+    heatmap_df = create_pivot_table(filtered_df, "Purpose", "AI Tool", "Time Saved")
+    if heatmap_df is not None and not heatmap_df.empty:
+        import plotly.express as px
+        fig = px.imshow(
+            heatmap_df,
+            text_auto=True,
+            color_continuous_scale="Blues",
+            aspect="auto",
+            labels=dict(x="AI Tool", y="Purpose", color="Avg Time Saved (min)")
+        )
+        title = f"{title_prefix}Average Time Saved by Purpose and AI Tool" if title_prefix else "Average Time Saved by Purpose and AI Tool"
+        fig.update_layout(title=title)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Not enough data for heatmap.")
+
+def create_duration_by_tool_chart(filtered_df):
+    """Create duration by AI tool bar chart"""
+    st.subheader("Duration by AI Tool")
+    tool_duration = filtered_df.groupby('AI Tool')['Duration'].sum().reset_index()
+    st.bar_chart(tool_duration.set_index('AI Tool'))
+
+def create_tool_effectiveness_table(filtered_df):
+    """Create tool effectiveness benchmarking table"""
+    st.subheader("Tool Effectiveness Benchmarking")
+    tool_stats = calculate_tool_effectiveness(filtered_df)
+    if not tool_stats.empty:
+        st.dataframe(tool_stats)
+
+def create_complexity_vs_impact_table(filtered_df):
+    """Create complexity vs impact analysis table"""
+    st.subheader("Complexity vs Impact")
+    complexity_stats = calculate_complexity_analysis(filtered_df)
+    if not complexity_stats.empty:
+        st.dataframe(complexity_stats)
+
+def create_satisfaction_vs_efficiency_chart(filtered_df, title_prefix=""):
+    """Create satisfaction vs efficiency scatter plot"""
+    st.subheader("Satisfaction vs Efficiency")
+    if not filtered_df["Time Saved"].isnull().all():
+        import plotly.express as px
+        hover_data = ["Purpose", "Manager"] if "Manager" in filtered_df.columns else ["Purpose"]
+        fig = px.scatter(filtered_df, x="Time Saved", y="Satisfaction", color="AI Tool", hover_data=hover_data)
+        title = f"{title_prefix}Satisfaction vs Time Saved" if title_prefix else "Satisfaction vs Time Saved by AI Tool"
+        fig.update_layout(title=title)
+        st.plotly_chart(fig, use_container_width=True)
+
+def create_trend_analysis_charts(filtered_df, title_prefix=""):
+    """Create trend and seasonality analysis charts"""
+    st.subheader("Trend & Seasonality Analysis")
+    import plotly.express as px
+    
+    # Daily submissions trend
+    daily_counts = filtered_df.resample('D', on='Timestamp').size().reset_index(name='Count')
+    title = f"{title_prefix}Daily Submissions" if title_prefix else "Daily Submission Count"
+    fig = px.line(daily_counts, x="Timestamp", y="Count", title=title)
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Weekly average time saved trend
+    weekly_avg_ts = filtered_df.resample('W', on='Timestamp')["Time Saved"].mean().reset_index()
+    title = f"{title_prefix}Weekly Avg Time Saved" if title_prefix else "Weekly Average Time Saved"
+    fig2 = px.line(weekly_avg_ts, x="Timestamp", y="Time Saved", title=title)
+    st.plotly_chart(fig2, use_container_width=True)
+
+def create_manager_insights_table(filtered_df):
+    """Create manager/team insights table"""
+    st.subheader("Manager/Team Insights")
+    manager_stats = calculate_manager_insights(filtered_df)
+    if not manager_stats.empty:
+        st.dataframe(manager_stats)
+
+def create_purpose_insights_table(filtered_df):
+    """Create purpose-based use cases table"""
+    st.subheader("Purpose-based Use Cases")
+    purpose_stats = calculate_purpose_insights(filtered_df)
+    if not purpose_stats.empty:
+        st.dataframe(purpose_stats)
+
+def render_all_statistics(filtered_df):
+    """Render all statistics charts and tables"""
+    create_purpose_distribution_chart(filtered_df)
+    create_heatmap_chart(filtered_df)
+    create_duration_by_tool_chart(filtered_df)
+    create_tool_effectiveness_table(filtered_df)
+    create_complexity_vs_impact_table(filtered_df)
+    create_satisfaction_vs_efficiency_chart(filtered_df)
+    create_manager_insights_table(filtered_df)
+    create_purpose_insights_table(filtered_df)
+    create_trend_analysis_charts(filtered_df)
+
+def render_manager_statistics(filtered_df, manager_name):
+    """Render statistics filtered by manager"""
+    title_prefix = f"{manager_name}: "
+    create_purpose_distribution_chart(filtered_df)
+    create_heatmap_chart(filtered_df, title_prefix)
+    create_duration_by_tool_chart(filtered_df)
+    create_tool_effectiveness_table(filtered_df)
+    create_complexity_vs_impact_table(filtered_df)
+    create_satisfaction_vs_efficiency_chart(filtered_df, title_prefix)
+    create_trend_analysis_charts(filtered_df, title_prefix)
 
 # Initialize session state for entries
 def init_state():
@@ -53,6 +179,58 @@ TASK_COMPLEXITY_MAP = {
     "Hard": 3
 }
 REVERSE_TASK_COMPLEXITY_MAP = {v: k for k, v in TASK_COMPLEXITY_MAP.items()}
+
+# Helper functions for form validation and entry creation
+def validate_form_submission(name, manager_val, ai_tool_val, purpose_val, result, 
+                           complexity_val, satisfaction, time_without_ai, 
+                           workflow_impact_val, duration, workflow_impact_num, complexity_num):
+    """
+    Validate form submission data.
+    
+    Returns:
+        tuple: (is_valid, error_message)
+    """
+    required_fields = [
+        name.strip(),
+        manager_val.strip(),
+        ai_tool_val.strip(),
+        purpose_val.strip(),
+        result.strip(),
+        complexity_val.strip(),
+        str(satisfaction).strip(),
+        str(time_without_ai).strip(),
+        workflow_impact_val.strip()
+    ]
+    
+    if not all(required_fields):
+        return False, "Please fill in all required fields."
+    
+    if duration <= 0 or time_without_ai <= 0:
+        return False, "Duration and time without AI must be greater than 0."
+    
+    if workflow_impact_num is None or complexity_num is None:
+        return False, "Please select valid options for complexity and workflow impact."
+    
+    return True, ""
+
+def create_entry_dict(name, manager_val, ai_tool_val, purpose_val, duration, 
+                     complexity_num, satisfaction, time_without_ai, 
+                     workflow_impact_num, result, notes):
+    """Create entry dictionary from form data."""
+    return {
+        'Name': name,
+        'Manager': manager_val,
+        'AI Tool': ai_tool_val,
+        'Purpose': purpose_val,
+        'Duration': duration,
+        'Task Complexity': complexity_num,
+        "Satisfaction": satisfaction,
+        "Time Without AI": time_without_ai,
+        "Workflow Impact": workflow_impact_num,
+        'Result/Outcome': result,
+        'Notes': notes,
+        'Timestamp': datetime.datetime.now().isoformat()
+    }
 
 # Create tabs for data entry, visualization, raw data
 tab1, tab2, tab3 = st.tabs(["Survey", "Statistics", "Raw Data"])
@@ -112,35 +290,22 @@ with tab1:
             complexity_num = TASK_COMPLEXITY_MAP.get(complexity_val, None)
             workflow_impact_val = workflow_impact if workflow_impact != "(Select impact)" else ""
             workflow_impact_num = WORKFLOW_IMPACT_MAP.get(workflow_impact_val, None)
-            # Require duration and time_without_ai to be greater than 0
-            if not all([
-                name.strip(),
-                manager_val.strip(),
-                ai_tool_val.strip(),
-                purpose_val.strip(),
-                result.strip(),
-                complexity_val.strip(),
-                str(satisfaction).strip(),
-                str(time_without_ai).strip(),
-                workflow_impact_val.strip()
-            ]) or duration <= 0 or time_without_ai <= 0 or workflow_impact_num is None or complexity_num is None:
+            
+            is_valid, error_message = validate_form_submission(
+                name, manager_val, ai_tool_val, purpose_val, result, 
+                complexity_val, satisfaction, time_without_ai, 
+                workflow_impact_val, duration, workflow_impact_num, complexity_num
+            )
+            
+            if not is_valid:
                 st.toast("There was a problem with submission.", icon="⚠️")
-                st.warning("Please fill in all required fields and ensure minutes are greater than 0.")
+                st.warning(error_message)
             else:
-                entry = {
-                    'Name': name,
-                    'Manager': manager_val,
-                    'AI Tool': ai_tool_val,
-                    'Purpose': purpose_val,
-                    'Duration': duration,
-                    'Task Complexity': complexity_num,
-                    "Satisfaction": satisfaction,
-                    "Time Without AI": time_without_ai,
-                    "Workflow Impact": workflow_impact_num,
-                    'Result/Outcome': result,
-                    'Notes': notes,
-                    'Timestamp': datetime.datetime.now().isoformat()
-                }
+                entry = create_entry_dict(
+                    name, manager_val, ai_tool_val, purpose_val, duration, 
+                    complexity_num, satisfaction, time_without_ai, 
+                    workflow_impact_num, result, notes
+                )
                 st.session_state.entries.append(entry)
                 save_entries(st.session_state.entries)
                 st.toast("Submitted!", icon="✅")
@@ -148,11 +313,7 @@ with tab1:
 with tab2:
     st.title("AI Tool Usage - Statistics")
 
-    df = pd.DataFrame(st.session_state.entries)
-    if not df.empty and 'Workflow Impact' in df.columns:
-        df['Workflow Impact'] = df['Workflow Impact'].map(REVERSE_WORKFLOW_IMPACT_MAP).fillna(df['Workflow Impact'])
-    if not df.empty and 'Task Complexity' in df.columns:
-        df['Task Complexity'] = df['Task Complexity'].map(REVERSE_TASK_COMPLEXITY_MAP).fillna(df['Task Complexity'])
+    df = prepare_dataframe(st.session_state.entries)
     if df.empty:
         st.write("No data available for visualization.")
     else:
@@ -173,112 +334,7 @@ with tab2:
             if 'last_stats_selection' in st.session_state and st.session_state['last_stats_selection'] is not None:
                 st.toast("Showing all statistics.")
             st.session_state['last_stats_selection'] = None
-            filtered_df = df.copy()
-            if filtered_df.empty:
-                st.write("No data available for visualization.")
-            else:
-                st.subheader("Distribution by Purpose")
-                import plotly.express as px
-                purpose_counts = filtered_df['Purpose'].value_counts().reset_index()
-                purpose_counts.columns = ['Purpose', 'Count']
-                fig = px.pie(purpose_counts, names='Purpose', values='Count', title='Purpose Distribution')
-                st.plotly_chart(fig, use_container_width=True)
-
-                st.subheader("Purpose vs AI Tool: Average Time Saved Heatmap")
-                filtered_df["Time Saved"] = filtered_df["Time Without AI"] - filtered_df["Duration"]
-                heatmap_df = filtered_df.pivot_table(
-                    index="Purpose",
-                    columns="AI Tool",
-                    values="Time Saved",
-                    aggfunc="mean"
-                )
-                if not heatmap_df.empty:
-                    import plotly.express as px
-                    fig = px.imshow(
-                        heatmap_df,
-                        text_auto=True,
-                        color_continuous_scale="Blues",
-                        aspect="auto",
-                        labels=dict(x="AI Tool", y="Purpose", color="Avg Time Saved (min)")
-                    )
-                    fig.update_layout(title="Average Time Saved by Purpose and AI Tool")
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.info("Not enough data for heatmap.")
-
-                st.subheader("Duration by AI Tool")
-                tool_duration = filtered_df.groupby('AI Tool')['Duration'].sum().reset_index()
-                st.bar_chart(tool_duration.set_index('AI Tool'))
-
-                st.subheader("Tool Effectiveness Benchmarking")
-                tool_stats = filtered_df.groupby("AI Tool").agg({
-                    "Time Saved": "mean",
-                    "Satisfaction": "mean",
-                    "Workflow Impact": lambda x: x.value_counts().index[0] if not x.empty else None
-                }).reset_index()
-                tool_stats.rename(columns={
-                    "Time Saved": "Avg Time Saved",
-                    "Satisfaction": "Avg Satisfaction",
-                    "Workflow Impact": "Most Common Workflow Impact"
-                }, inplace=True)
-                st.dataframe(tool_stats)
-
-                st.subheader("Complexity vs Impact")
-                complexity_stats = filtered_df.groupby("Task Complexity").agg({
-                    "Time Saved": "mean",
-                    "Satisfaction": "mean"
-                }).reset_index()
-                complexity_stats.rename(columns={
-                    "Time Saved": "Avg Time Saved",
-                    "Satisfaction": "Avg Satisfaction"
-                }, inplace=True)
-                st.dataframe(complexity_stats)
-                st.subheader("Satisfaction vs Efficiency")
-                if not filtered_df["Time Saved"].isnull().all():
-                    fig = px.scatter(filtered_df, x="Time Saved", y="Satisfaction", color="AI Tool", hover_data=["Purpose", "Manager"])
-                    fig.update_layout(title="Satisfaction vs Time Saved by AI Tool")
-                    st.plotly_chart(fig, use_container_width=True)
-
-                st.subheader("Manager/Team Insights")
-                manager_stats = filtered_df.groupby("Manager").agg({
-                    "Time Saved": "mean",
-                    "Satisfaction": "mean",
-                    "Duration": "count"
-                }).reset_index()
-                manager_stats.rename(columns={
-                    "Time Saved": "Avg Time Saved",
-                    "Satisfaction": "Avg Satisfaction",
-                    "Duration": "# Tasks"
-                }, inplace=True)
-                st.dataframe(manager_stats)
-
-                st.subheader("Purpose-based Use Cases")
-                purpose_stats = filtered_df.groupby("Purpose").agg({
-                    "Time Saved": "mean",
-                    "Satisfaction": "mean",
-                    "Workflow Impact": lambda x: x.value_counts().index[0] if not x.empty else None,
-                    "Duration": "count"
-                }).reset_index()
-                purpose_stats.rename(columns={
-                    "Time Saved": "Avg Time Saved",
-                    "Satisfaction": "Avg Satisfaction",
-                    "Workflow Impact": "Most Common Workflow Impact",
-                    "Duration": "# Tasks"
-                }, inplace=True)
-                st.dataframe(purpose_stats)
-
-                st.subheader("Trend & Seasonality Analysis")
-                # Ensure timestamp is datetime
-                filtered_df["Timestamp"] = pd.to_datetime(filtered_df["Timestamp"])
-                import plotly.express as px
-                # Daily submissions trend
-                daily_counts = filtered_df.resample('D', on='Timestamp').size().reset_index(name='Count')
-                fig = px.line(daily_counts, x="Timestamp", y="Count", title="Daily Submission Count")
-                st.plotly_chart(fig, use_container_width=True)
-                # Weekly average time saved trend
-                weekly_avg_ts = filtered_df.resample('W', on='Timestamp')["Time Saved"].mean().reset_index()
-                fig2 = px.line(weekly_avg_ts, x="Timestamp", y="Time Saved", title="Weekly Average Time Saved")
-                st.plotly_chart(fig2, use_container_width=True)
+            render_all_statistics(df)
         elif stats_selection == 0:
             st.toast("Showing statistics by manager.")
             st.session_state['last_stats_selection'] = 0
@@ -294,85 +350,11 @@ with tab2:
                     if filtered_df.empty:
                         st.write("No data available for visualization.")
                     else:
-                        st.subheader("Distribution by Purpose")
-                        import plotly.express as px
-                        purpose_counts = filtered_df['Purpose'].value_counts().reset_index()
-                        purpose_counts.columns = ['Purpose', 'Count']
-                        fig = px.pie(purpose_counts, names='Purpose', values='Count', title='Purpose Distribution')
-                        st.plotly_chart(fig, use_container_width=True)
-
-                        # --- By-Manager: Purpose vs AI Tool Heatmap ---
-                        st.subheader("Purpose vs AI Tool: Avg Time Saved Heatmap")
-                        filtered_df["Time Saved"] = filtered_df["Time Without AI"] - filtered_df["Duration"]
-                        heatmap_df_m = filtered_df.pivot_table(
-                            index="Purpose", columns="AI Tool", values="Time Saved", aggfunc="mean"
-                        )
-                        if not heatmap_df_m.empty:
-                            fig_hm = px.imshow(
-                                heatmap_df_m,
-                                text_auto=True,
-                                color_continuous_scale="Blues",
-                                labels=dict(x="AI Tool", y="Purpose", color="Avg Time Saved (min)")
-                            )
-                            fig_hm.update_layout(title=f"{selected_manager}: Avg Time Saved by Purpose & Tool")
-                            st.plotly_chart(fig_hm, use_container_width=True)
-                        else:
-                            st.info("Not enough data for manager-level heatmap.")
-                        
-                        st.subheader("Duration by AI Tool")
-                        tool_duration = filtered_df.groupby('AI Tool')['Duration'].sum().reset_index()
-                        st.bar_chart(tool_duration.set_index('AI Tool'))
-
-                        st.subheader("Tool Effectiveness Benchmarking")
-                        tool_stats = filtered_df.groupby("AI Tool").agg({
-                            "Time Saved": "mean",
-                            "Satisfaction": "mean",
-                            "Workflow Impact": lambda x: x.value_counts().index[0] if not x.empty else None
-                        }).reset_index()
-                        tool_stats.rename(columns={
-                            "Time Saved": "Avg Time Saved",
-                            "Satisfaction": "Avg Satisfaction",
-                            "Workflow Impact": "Most Common Workflow Impact"
-                        }, inplace=True)
-                        st.dataframe(tool_stats)
-
-                        st.subheader("Complexity vs Impact")
-                        complexity_stats = filtered_df.groupby("Task Complexity").agg({
-                            "Time Saved": "mean",
-                            "Satisfaction": "mean"
-                        }).reset_index()
-                        complexity_stats.rename(columns={
-                            "Time Saved": "Avg Time Saved",
-                            "Satisfaction": "Avg Satisfaction"
-                        }, inplace=True)
-                        st.dataframe(complexity_stats)
-                        
-                        # --- By-Manager: Satisfaction vs Efficiency ---
-                        st.subheader("Satisfaction vs Efficiency")
-                        import plotly.express as px
-                        fig = px.scatter(filtered_df, x="Time Saved", y="Satisfaction", color="AI Tool", hover_data=["Purpose"])
-                        fig.update_layout(title=f"{selected_manager}: Satisfaction vs Time Saved")
-                        st.plotly_chart(fig, use_container_width=True)
-
-                        # --- By-Manager: Trend & Seasonality ---
-                        st.subheader("Trend & Seasonality Analysis")
-                        filtered_df["Timestamp"] = pd.to_datetime(filtered_df["Timestamp"])
-                        # Daily count for this manager
-                        daily_counts_m = filtered_df.resample('D', on='Timestamp').size().reset_index(name='Count')
-                        fig_dc = px.line(daily_counts_m, x="Timestamp", y="Count", title=f"{selected_manager}: Daily Submissions")
-                        st.plotly_chart(fig_dc, use_container_width=True)
-                        # Weekly avg time saved for this manager
-                        weekly_avg_m = filtered_df.resample('W', on='Timestamp')["Time Saved"].mean().reset_index()
-                        fig_wa = px.line(weekly_avg_m, x="Timestamp", y="Time Saved", title=f"{selected_manager}: Weekly Avg Time Saved")
-                        st.plotly_chart(fig_wa, use_container_width=True)
+                        render_manager_statistics(filtered_df, selected_manager)
 
 with tab3:
     st.title("AI Tool Usage - Raw Data")
-    df = pd.DataFrame(st.session_state.entries)
-    if not df.empty and 'Workflow Impact' in df.columns:
-        df['Workflow Impact'] = df['Workflow Impact'].map(REVERSE_WORKFLOW_IMPACT_MAP).fillna(df['Workflow Impact'])
-    if not df.empty and 'Task Complexity' in df.columns:
-        df['Task Complexity'] = df['Task Complexity'].map(REVERSE_TASK_COMPLEXITY_MAP).fillna(df['Task Complexity'])
+    df = prepare_dataframe(st.session_state.entries)
     st.subheader("Data:")
     if df.empty:
         st.write("No submissions yet.")
