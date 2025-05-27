@@ -393,54 +393,102 @@ with tab3:
             selection_mode="single-row"
         )
         
-        # Show duplicate button when a row is selected
+        # Show duplicate and delete buttons when a row is selected
         if event.selection.rows:
             selected_index = event.selection.rows[0]
             selected_entry = df.iloc[selected_index]
             
-            if st.button("📋 Duplicate Selected Entry", help="This will pre-fill the survey with data from the selected entry"):
-                # Store the selected entry data in session state for form pre-filling
-                original_entry = st.session_state.entries[selected_index]
+            # Create two columns for the buttons
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("📋 Duplicate Selected Entry", help="This will pre-fill the survey with data from the selected entry"):
+                    # Store the selected entry data in session state for form pre-filling
+                    original_entry = st.session_state.entries[selected_index]
+                    
+                    # Handle manager - only include if it's in the current choices, otherwise empty
+                    manager_val = original_entry['Manager']
+                    manager_default = [manager_val] if manager_val in MANAGER_CHOICES else []
+                    
+                    # Handle AI tool - only include if it's in the current choices, otherwise empty
+                    ai_tool_val = original_entry['AI Tool']
+                    ai_tool_default = [ai_tool_val] if ai_tool_val in TOOL_CHOICES else []
+                    
+                    # Handle purpose - only include if it's in the current choices, otherwise empty
+                    purpose_val = original_entry['Purpose']
+                    purpose_default = [purpose_val] if purpose_val in PURPOSE_CHOICES else []
+                    
+                    st.session_state.duplicate_entry = {
+                        'name': original_entry['Name'],
+                        'manager': manager_default,
+                        'ai_tool': ai_tool_default,
+                        'purpose': purpose_default,
+                        'duration': original_entry['Duration'],
+                        'complexity': REVERSE_TASK_COMPLEXITY_MAP.get(original_entry['Task Complexity'], 'Easy'),
+                        'satisfaction': original_entry['Satisfaction'],
+                        'time_without_ai': original_entry['Time Without AI'],
+                        'workflow_impact': REVERSE_WORKFLOW_IMPACT_MAP.get(original_entry['Workflow Impact'], 'Little to none'),
+                        'result': original_entry['Result/Outcome'],
+                        'notes': original_entry.get('Notes', '')
+                    }
+                    
+                    # Format the date from the timestamp
+                    timestamp = original_entry['Timestamp']
+                    if isinstance(timestamp, str):
+                        try:
+                            date_obj = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                            formatted_date = date_obj.strftime('%m/%d/%Y')
+                        except:
+                            formatted_date = timestamp.split('T')[0] if 'T' in timestamp else timestamp
+                    else:
+                        formatted_date = str(timestamp)
+                    
+                    name = original_entry['Name']
+                    st.toast(f"{name}'s entry from {formatted_date} has been copied. Switch to the Survey tab to submit.", icon="📋")
+            
+            with col2:
+                if st.button("🗑️ Delete Selected Entry", help="This will permanently delete the selected entry", type="secondary"):
+                    # Show confirmation dialog
+                    original_entry = st.session_state.entries[selected_index]
+                    name = original_entry['Name']
+                    
+                    # Format the date from the timestamp for display
+                    timestamp = original_entry['Timestamp']
+                    if isinstance(timestamp, str):
+                        try:
+                            date_obj = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                            formatted_date = date_obj.strftime('%m/%d/%Y')
+                        except:
+                            formatted_date = timestamp.split('T')[0] if 'T' in timestamp else timestamp
+                    else:
+                        formatted_date = str(timestamp)
+                    
+                    # Store the entry to delete in session state for confirmation
+                    st.session_state.entry_to_delete = {
+                        'index': selected_index,
+                        'name': name,
+                        'date': formatted_date
+                    }
+                    st.rerun()
+            
+            # Show confirmation dialog if an entry is marked for deletion
+            if 'entry_to_delete' in st.session_state:
+                entry_info = st.session_state.entry_to_delete
+                st.warning(f"⚠️ Are you sure you want to delete {entry_info['name']}'s entry from {entry_info['date']}? This action cannot be undone.")
                 
-                # Handle manager - only include if it's in the current choices, otherwise empty
-                manager_val = original_entry['Manager']
-                manager_default = [manager_val] if manager_val in MANAGER_CHOICES else []
+                col1, col2, col3 = st.columns([1, 1, 2])
+                with col1:
+                    if st.button("✅ Yes, Delete", type="primary"):
+                        # Delete the entry
+                        del st.session_state.entries[entry_info['index']]
+                        save_entries(st.session_state.entries)
+                        del st.session_state.entry_to_delete
+                        st.toast(f"Deleted {entry_info['name']}'s entry from {entry_info['date']}", icon="🗑️")
+                        st.rerun()
                 
-                # Handle AI tool - only include if it's in the current choices, otherwise empty
-                ai_tool_val = original_entry['AI Tool']
-                ai_tool_default = [ai_tool_val] if ai_tool_val in TOOL_CHOICES else []
-                
-                # Handle purpose - only include if it's in the current choices, otherwise empty
-                purpose_val = original_entry['Purpose']
-                purpose_default = [purpose_val] if purpose_val in PURPOSE_CHOICES else []
-                
-                st.session_state.duplicate_entry = {
-                    'name': original_entry['Name'],
-                    'manager': manager_default,
-                    'ai_tool': ai_tool_default,
-                    'purpose': purpose_default,
-                    'duration': original_entry['Duration'],
-                    'complexity': REVERSE_TASK_COMPLEXITY_MAP.get(original_entry['Task Complexity'], 'Easy'),
-                    'satisfaction': original_entry['Satisfaction'],
-                    'time_without_ai': original_entry['Time Without AI'],
-                    'workflow_impact': REVERSE_WORKFLOW_IMPACT_MAP.get(original_entry['Workflow Impact'], 'Little to none'),
-                    'result': original_entry['Result/Outcome'],
-                    'notes': original_entry.get('Notes', '')
-                }
-                
-                # Format the date from the timestamp
-                timestamp = original_entry['Timestamp']
-                if isinstance(timestamp, str):
-                    try:
-                        date_obj = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                        formatted_date = date_obj.strftime('%m/%d/%Y')
-                    except:
-                        formatted_date = timestamp.split('T')[0] if 'T' in timestamp else timestamp
-                else:
-                    formatted_date = str(timestamp)
-                
-                name = original_entry['Name']
-                st.toast(f"{name}'s entry from {formatted_date} has been copied. Switch to the Survey tab to submit.", icon="📋")
-        
-        # Use a subtle caption instead of st.info for download instruction
+                with col2:
+                    if st.button("❌ Cancel"):
+                        del st.session_state.entry_to_delete
+                        st.rerun()
+
         st.caption("💾 To download CSV: hover over the table and click the Download button at the top right.")
