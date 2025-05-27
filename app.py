@@ -232,6 +232,104 @@ def create_entry_dict(name, manager_val, ai_tool_val, purpose_val, duration,
         'Timestamp': datetime.datetime.now().isoformat()
     }
 
+def render_usage_form(form_key, default_data=None, submit_button_text="Submit", show_cancel=False):
+    """
+    Render the usage form with optional default data.
+    
+    Args:
+        form_key (str): Unique key for the form
+        default_data (dict): Default values for form fields
+        submit_button_text (str): Text for the submit button
+        show_cancel (bool): Whether to show a cancel button
+        
+    Returns:
+        tuple: (form_data, submitted, cancelled) where form_data contains all form values
+    """
+    if default_data is None:
+        default_data = {}
+    
+    with st.form(form_key, clear_on_submit=(form_key == "usage_form")):
+        name = st.text_input("Name", value=default_data.get('name', ''))
+        manager = st.multiselect(
+            "Manager",
+            MANAGER_CHOICES,
+            default=default_data.get('manager', []),
+            max_selections=1,
+            accept_new_options=True,
+        )
+        ai_tool = st.multiselect(
+            "AI Tool",
+            TOOL_CHOICES,
+            default=default_data.get('ai_tool', []),
+            max_selections=1,
+            accept_new_options=True,
+        )
+        purpose = st.multiselect(
+            "Purpose",
+            PURPOSE_CHOICES,
+            default=default_data.get('purpose', []),
+            max_selections=1,
+            accept_new_options=True,
+        )
+        duration = st.number_input("Duration (minutes)", min_value=0, value=default_data.get('duration', 0))
+        complexity_options = ["(Select complexity)", "Easy", "Medium", "Hard"]
+        complexity_default_index = 0
+        if default_data.get('complexity') in complexity_options:
+            complexity_default_index = complexity_options.index(default_data.get('complexity'))
+        complexity = st.selectbox(
+            "What was the complexity level of the task?",
+            complexity_options,
+            index=complexity_default_index
+        )
+        satisfaction = st.slider("Rate your confidence in the tools's final output.", 1, 5, default_data.get('satisfaction', 3))
+        time_without_ai = st.number_input("About how much time might the task have taken you to complete without AI assistance? (minutes)", min_value=0, value=default_data.get('time_without_ai', 0))
+        workflow_impact_options = [
+            "(Select impact)",
+            "Little to none",
+            "Minor improvement",
+            "Moderate improvement",
+            "Considerable improvement",
+            "Significant improvement"
+        ]
+        workflow_impact_default_index = 0
+        if default_data.get('workflow_impact') in workflow_impact_options:
+            workflow_impact_default_index = workflow_impact_options.index(default_data.get('workflow_impact'))
+        workflow_impact = st.selectbox(
+            "Estimate the impact that this use of AI tools has had on your overall workflow.",
+            workflow_impact_options,
+            index=workflow_impact_default_index
+        )
+        result = st.text_input("Describe the result/outcome.", value=default_data.get('result', ''))
+        notes = st.text_area("Additional notes (optional):", value=default_data.get('notes', ''))
+        
+        # Form buttons
+        if show_cancel:
+            col1, col2 = st.columns(2)
+            with col1:
+                submitted = st.form_submit_button(submit_button_text, type="primary")
+            with col2:
+                cancelled = st.form_submit_button("❌ Cancel Edit")
+        else:
+            submitted = st.form_submit_button(submit_button_text)
+            cancelled = False
+    
+    # Package form data
+    form_data = {
+        'name': name,
+        'manager': manager,
+        'ai_tool': ai_tool,
+        'purpose': purpose,
+        'duration': duration,
+        'complexity': complexity,
+        'satisfaction': satisfaction,
+        'time_without_ai': time_without_ai,
+        'workflow_impact': workflow_impact,
+        'result': result,
+        'notes': notes
+    }
+    
+    return form_data, submitted, cancelled
+
 # Create tabs for data entry, visualization, raw data
 tab1, tab2, tab3 = st.tabs(["Survey", "Statistics", "Raw Data"])
 
@@ -245,94 +343,42 @@ with tab1:
     if duplicate_data:
         st.info("📋 Form pre-filled from duplicated entry. You can modify any fields before submitting.")
 
-    with st.form("usage_form", clear_on_submit=True):
-        name = st.text_input("Name", value=duplicate_data.get('name', ''))
-        manager = st.multiselect(
-            "Manager",
-            MANAGER_CHOICES,
-            default=duplicate_data.get('manager', []),
-            max_selections=1,
-            accept_new_options=True,
-        )
-        ai_tool = st.multiselect(
-            "AI Tool",
-            TOOL_CHOICES,
-            default=duplicate_data.get('ai_tool', []),
-            max_selections=1,
-            accept_new_options=True,
-        )
-        purpose = st.multiselect(
-            "Purpose",
-            PURPOSE_CHOICES,
-            default=duplicate_data.get('purpose', []),
-            max_selections=1,
-            accept_new_options=True,
-        )
-        duration = st.number_input("Duration (minutes)", min_value=0, value=duplicate_data.get('duration', 0))
-        complexity_options = ["(Select complexity)", "Easy", "Medium", "Hard"]
-        complexity_default_index = 0
-        if duplicate_data.get('complexity') in complexity_options:
-            complexity_default_index = complexity_options.index(duplicate_data.get('complexity'))
-        complexity = st.selectbox(
-            "What was the complexity level of the task?",
-            complexity_options,
-            index=complexity_default_index
-        )
-        satisfaction = st.slider("Rate your confidence in the tools's final output.", 1, 5, duplicate_data.get('satisfaction', 3))
-        time_without_ai = st.number_input("About how much time might the task have taken you to complete without AI assistance? (minutes)", min_value=0, value=duplicate_data.get('time_without_ai', 0))
-        workflow_impact_options = [
-            "(Select impact)",
-            "Little to none",
-            "Minor improvement",
-            "Moderate improvement",
-            "Considerable improvement",
-            "Significant improvement"
-        ]
-        workflow_impact_default_index = 0
-        if duplicate_data.get('workflow_impact') in workflow_impact_options:
-            workflow_impact_default_index = workflow_impact_options.index(duplicate_data.get('workflow_impact'))
-        workflow_impact = st.selectbox(
-            "Estimate the impact that this use of AI tools has had on your overall workflow.",
-            workflow_impact_options,
-            index=workflow_impact_default_index
-        )
-        result = st.text_input("Describe the result/outcome.", value=duplicate_data.get('result', ''))
-        notes = st.text_area("Additional notes (optional):", value=duplicate_data.get('notes', ''))
-        submitted = st.form_submit_button("Submit")
+    # Render the form
+    form_data, submitted, cancelled = render_usage_form("usage_form", duplicate_data)
 
-        # Make all fields except notes mandatory
-        if submitted:
-            # Clear the duplicate data after form submission attempt
-            if 'duplicate_entry' in st.session_state:
-                del st.session_state.duplicate_entry
-                
-            # Extract single values from multiselects
-            manager_val = manager[0] if manager else ""
-            ai_tool_val = ai_tool[0] if ai_tool else ""
-            purpose_val = purpose[0] if purpose else ""
-            complexity_val = complexity if complexity != "(Select complexity)" else ""
-            complexity_num = TASK_COMPLEXITY_MAP.get(complexity_val, None)
-            workflow_impact_val = workflow_impact if workflow_impact != "(Select impact)" else ""
-            workflow_impact_num = WORKFLOW_IMPACT_MAP.get(workflow_impact_val, None)
+    # Make all fields except notes mandatory
+    if submitted:
+        # Clear the duplicate data after form submission attempt
+        if 'duplicate_entry' in st.session_state:
+            del st.session_state.duplicate_entry
             
-            is_valid, error_message = validate_form_submission(
-                name, manager_val, ai_tool_val, purpose_val, result, 
-                complexity_val, satisfaction, time_without_ai, 
-                workflow_impact_val, duration, workflow_impact_num, complexity_num
+        # Extract single values from multiselects
+        manager_val = form_data['manager'][0] if form_data['manager'] else ""
+        ai_tool_val = form_data['ai_tool'][0] if form_data['ai_tool'] else ""
+        purpose_val = form_data['purpose'][0] if form_data['purpose'] else ""
+        complexity_val = form_data['complexity'] if form_data['complexity'] != "(Select complexity)" else ""
+        complexity_num = TASK_COMPLEXITY_MAP.get(complexity_val, None)
+        workflow_impact_val = form_data['workflow_impact'] if form_data['workflow_impact'] != "(Select impact)" else ""
+        workflow_impact_num = WORKFLOW_IMPACT_MAP.get(workflow_impact_val, None)
+        
+        is_valid, error_message = validate_form_submission(
+            form_data['name'], manager_val, ai_tool_val, purpose_val, form_data['result'], 
+            complexity_val, form_data['satisfaction'], form_data['time_without_ai'], 
+            workflow_impact_val, form_data['duration'], workflow_impact_num, complexity_num
+        )
+        
+        if not is_valid:
+            st.toast("There was a problem with submission.", icon="⚠️")
+            st.warning(error_message)
+        else:
+            entry = create_entry_dict(
+                form_data['name'], manager_val, ai_tool_val, purpose_val, form_data['duration'], 
+                complexity_num, form_data['satisfaction'], form_data['time_without_ai'], 
+                workflow_impact_num, form_data['result'], form_data['notes']
             )
-            
-            if not is_valid:
-                st.toast("There was a problem with submission.", icon="⚠️")
-                st.warning(error_message)
-            else:
-                entry = create_entry_dict(
-                    name, manager_val, ai_tool_val, purpose_val, duration, 
-                    complexity_num, satisfaction, time_without_ai, 
-                    workflow_impact_num, result, notes
-                )
-                st.session_state.entries.append(entry)
-                save_entries(st.session_state.entries)
-                st.toast("Submitted!", icon="✅")
+            st.session_state.entries.append(entry)
+            save_entries(st.session_state.entries)
+            st.toast("Submitted!", icon="✅")
 
 with tab2:
     st.title("AI Tool Usage - Statistics")
@@ -531,108 +577,50 @@ with tab3:
             st.subheader("Edit Entry")
             st.info("✏️ Modify the fields below and click 'Save Changes' to update the entry.")
             
-            with st.form("edit_form"):
-                edit_name = st.text_input("Name", value=edit_data.get('name', ''))
-                edit_manager = st.multiselect(
-                    "Manager",
-                    MANAGER_CHOICES,
-                    default=edit_data.get('manager', []),
-                    max_selections=1,
-                    accept_new_options=True,
-                )
-                edit_ai_tool = st.multiselect(
-                    "AI Tool",
-                    TOOL_CHOICES,
-                    default=edit_data.get('ai_tool', []),
-                    max_selections=1,
-                    accept_new_options=True,
-                )
-                edit_purpose = st.multiselect(
-                    "Purpose",
-                    PURPOSE_CHOICES,
-                    default=edit_data.get('purpose', []),
-                    max_selections=1,
-                    accept_new_options=True,
-                )
-                edit_duration = st.number_input("Duration (minutes)", min_value=0, value=edit_data.get('duration', 0))
-                complexity_options = ["(Select complexity)", "Easy", "Medium", "Hard"]
-                complexity_default_index = 0
-                if edit_data.get('complexity') in complexity_options:
-                    complexity_default_index = complexity_options.index(edit_data.get('complexity'))
-                edit_complexity = st.selectbox(
-                    "What was the complexity level of the task?",
-                    complexity_options,
-                    index=complexity_default_index
-                )
-                edit_satisfaction = st.slider("Rate your confidence in the tools's final output.", 1, 5, edit_data.get('satisfaction', 3))
-                edit_time_without_ai = st.number_input("About how much time might the task have taken you to complete without AI assistance? (minutes)", min_value=0, value=edit_data.get('time_without_ai', 0))
-                workflow_impact_options = [
-                    "(Select impact)",
-                    "Little to none",
-                    "Minor improvement",
-                    "Moderate improvement",
-                    "Considerable improvement",
-                    "Significant improvement"
-                ]
-                workflow_impact_default_index = 0
-                if edit_data.get('workflow_impact') in workflow_impact_options:
-                    workflow_impact_default_index = workflow_impact_options.index(edit_data.get('workflow_impact'))
-                edit_workflow_impact = st.selectbox(
-                    "Estimate the impact that this use of AI tools has had on your overall workflow.",
-                    workflow_impact_options,
-                    index=workflow_impact_default_index
-                )
-                edit_result = st.text_input("Describe the result/outcome.", value=edit_data.get('result', ''))
-                edit_notes = st.text_area("Additional notes (optional):", value=edit_data.get('notes', ''))
+            # Render the edit form
+            form_data, submitted, cancelled = render_usage_form("edit_form", edit_data, "💾 Save Changes", show_cancel=True)
+
+            if submitted:
+                # Extract single values from multiselects
+                manager_val = form_data['manager'][0] if form_data['manager'] else ""
+                ai_tool_val = form_data['ai_tool'][0] if form_data['ai_tool'] else ""
+                purpose_val = form_data['purpose'][0] if form_data['purpose'] else ""
+                complexity_val = form_data['complexity'] if form_data['complexity'] != "(Select complexity)" else ""
+                complexity_num = TASK_COMPLEXITY_MAP.get(complexity_val, None)
+                workflow_impact_val = form_data['workflow_impact'] if form_data['workflow_impact'] != "(Select impact)" else ""
+                workflow_impact_num = WORKFLOW_IMPACT_MAP.get(workflow_impact_val, None)
                 
-                # Form buttons
-                col1, col2 = st.columns(2)
-                with col1:
-                    save_changes = st.form_submit_button("💾 Save Changes", type="primary")
-                with col2:
-                    cancel_edit = st.form_submit_button("❌ Cancel Edit")
-
-                if save_changes:
-                    # Extract single values from multiselects
-                    manager_val = edit_manager[0] if edit_manager else ""
-                    ai_tool_val = edit_ai_tool[0] if edit_ai_tool else ""
-                    purpose_val = edit_purpose[0] if edit_purpose else ""
-                    complexity_val = edit_complexity if edit_complexity != "(Select complexity)" else ""
-                    complexity_num = TASK_COMPLEXITY_MAP.get(complexity_val, None)
-                    workflow_impact_val = edit_workflow_impact if edit_workflow_impact != "(Select impact)" else ""
-                    workflow_impact_num = WORKFLOW_IMPACT_MAP.get(workflow_impact_val, None)
+                is_valid, error_message = validate_form_submission(
+                    form_data['name'], manager_val, ai_tool_val, purpose_val, form_data['result'], 
+                    complexity_val, form_data['satisfaction'], form_data['time_without_ai'], 
+                    workflow_impact_val, form_data['duration'], workflow_impact_num, complexity_num
+                )
+                
+                if not is_valid:
+                    st.toast("There was a problem with saving changes.", icon="⚠️")
+                    st.warning(error_message)
+                else:
+                    # Get the original timestamp to preserve it
+                    original_entry = st.session_state.entries[edit_data['index']]
                     
-                    is_valid, error_message = validate_form_submission(
-                        edit_name, manager_val, ai_tool_val, purpose_val, edit_result, 
-                        complexity_val, edit_satisfaction, edit_time_without_ai, 
-                        workflow_impact_val, edit_duration, workflow_impact_num, complexity_num
+                    # Update the entry
+                    updated_entry = create_entry_dict(
+                        form_data['name'], manager_val, ai_tool_val, purpose_val, form_data['duration'], 
+                        complexity_num, form_data['satisfaction'], form_data['time_without_ai'], 
+                        workflow_impact_num, form_data['result'], form_data['notes']
                     )
+                    # Preserve the original timestamp
+                    updated_entry['Timestamp'] = original_entry['Timestamp']
                     
-                    if not is_valid:
-                        st.toast("There was a problem with saving changes.", icon="⚠️")
-                        st.warning(error_message)
-                    else:
-                        # Get the original timestamp to preserve it
-                        original_entry = st.session_state.entries[edit_data['index']]
-                        
-                        # Update the entry
-                        updated_entry = create_entry_dict(
-                            edit_name, manager_val, ai_tool_val, purpose_val, edit_duration, 
-                            complexity_num, edit_satisfaction, edit_time_without_ai, 
-                            workflow_impact_num, edit_result, edit_notes
-                        )
-                        # Preserve the original timestamp
-                        updated_entry['Timestamp'] = original_entry['Timestamp']
-                        
-                        # Replace the entry in the list
-                        st.session_state.entries[edit_data['index']] = updated_entry
-                        save_entries(st.session_state.entries)
-                        del st.session_state.edit_entry
-                        st.toast("Entry updated successfully!", icon="✅")
-                        st.rerun()
-
-                if cancel_edit:
+                    # Replace the entry in the list
+                    st.session_state.entries[edit_data['index']] = updated_entry
+                    save_entries(st.session_state.entries)
                     del st.session_state.edit_entry
+                    st.toast("Entry updated successfully!", icon="✅")
                     st.rerun()
+
+            if cancelled:
+                del st.session_state.edit_entry
+                st.rerun()
 
         st.caption("💾 To download CSV: hover over the table and click the Download button at the top right.")
