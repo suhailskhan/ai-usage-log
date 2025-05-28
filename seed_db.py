@@ -1,5 +1,6 @@
 import sqlite3
 import random
+import os
 from faker import Faker
 from datetime import datetime, timedelta
 
@@ -47,6 +48,13 @@ MANAGERS = [
 ]
 
 fake = Faker()
+
+def ensure_data_directory():
+    """Ensure the data directory exists, create it if it doesn't."""
+    data_dir = 'data'
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+        print(f"Created directory: {data_dir}")
 
 def create_connection(db_file):
     """ create a database connection to the SQLite database """
@@ -104,6 +112,7 @@ def seed_data(conn, num_rows=100):
     print(f"Successfully seeded {num_rows} rows into {TABLE_NAME}.")
 
 if __name__ == '__main__':
+    ensure_data_directory()
     conn = create_connection(DB_FILE)
     if conn is not None:
         # Ensure table exists (copied from storage.py for robustness, in case schema changes)

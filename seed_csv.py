@@ -1,5 +1,6 @@
 import csv
 import random
+import os
 from faker import Faker
 from datetime import datetime, timedelta
 
@@ -47,7 +48,15 @@ FIELDNAMES = [
     'Time_Without_AI', 'Workflow_Impact', 'Result_Outcome', 'Notes', 'Timestamp'
 ]
 
+def ensure_data_directory():
+    """Ensure the data directory exists, create it if it doesn't."""
+    data_dir = 'data'
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+        print(f"Created directory: {data_dir}")
+
 def seed_csv(num_rows=100):
+    ensure_data_directory()
     with open(CSV_FILE, mode='w', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=FIELDNAMES)
         writer.writeheader()
