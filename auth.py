@@ -1,10 +1,20 @@
+import os
 import time
 import jwt
 
 # JWT Configuration
-JWT_SECRET = "your-very-secret-key"  # Replace with a secure secret in production
+JWT_SECRET = os.getenv("JWT_SECRET", "your-very-secret-key")  # Fallback for local development
 JWT_ALGORITHM = "HS256"
-JWT_AUDIENCE = "localhost"
+
+# Extract domain from STREAMLIT_APP_URL or use localhost
+app_url = os.getenv("STREAMLIT_APP_URL", "localhost")
+if app_url.startswith("https://"):
+    JWT_AUDIENCE = app_url[8:]  # Remove "https://"
+elif app_url.startswith("http://"):
+    JWT_AUDIENCE = app_url[7:]   # Remove "http://"
+else:
+    JWT_AUDIENCE = app_url
+
 JWT_ISSUER = "AI Usage Log"
 JWT_SUBJECT = "Suhail Khan"
 JWT_EXP_DELTA_SECONDS = 60 * 60 * 24 * 365  # 1 year

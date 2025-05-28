@@ -249,7 +249,7 @@ resource "aws_secretsmanager_secret" "app_env" {
 #     SMTP_USERNAME = "placeholder"
 #     SMTP_PASSWORD = "placeholder"
 #     RECIPIENTS = "placeholder@example.com"
-#     STREAMLIT_APP_URL = "https://your-streamlit-app-url"
+#     JWT_SECRET: "'"$(node -e 'console.log(require("crypto").randomBytes(64).toString("hex"))')"'"
 #   })
 # }
 
@@ -364,6 +364,10 @@ resource "aws_ecs_task_definition" "app" {
       
       environment = [
         {
+          name  = "DEPLOYED",
+          value = "true"
+        },
+        {
           name  = "STREAMLIT_SERVER_ADDRESS",
           value = "0.0.0.0"
         },
@@ -374,6 +378,10 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "STREAMLIT_SERVER_HEADLESS",
           value = "true"
+        },
+        {
+          name  = "STREAMLIT_GLOBAL_DEVELOPMENT_MODE"
+          value = "false"
         },
         {
           name  = "STREAMLIT_APP_URL",
@@ -397,6 +405,10 @@ resource "aws_ecs_task_definition" "app" {
         {
           name      = "STORAGE_TYPE",
           valueFrom = "${aws_secretsmanager_secret.app_env.arn}:STORAGE_TYPE::"
+        },
+        {
+          name      = "JWT_SECRET",
+          valueFrom = "${aws_secretsmanager_secret.app_env.arn}:JWT_SECRET::"
         }
       ]
       

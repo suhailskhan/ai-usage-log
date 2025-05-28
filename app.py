@@ -1,5 +1,6 @@
 import datetime
 import os
+import sys
 
 import pandas as pd
 import plotly.express as px
@@ -25,6 +26,26 @@ from visualization_utils import (
 )
 
 load_dotenv()
+
+# Check for required JWT secret in deployed environments
+if os.getenv("DEPLOYED") == "true":
+    if not os.getenv("JWT_SECRET"):
+        print("ERROR: JWT_SECRET environment variable is required in deployed environments", file=sys.stderr)
+        sys.exit(1)
+
+# Environment-aware JWT cookie settings
+def get_cookie_settings():
+    if os.getenv("DEPLOYED") == "true":
+        return {
+            "secure": True,
+            "same_site": "Strict"
+        }
+    else:  # local development
+        return {
+            "secure": False,
+            "same_site": "Lax"
+        }
+
 def get_env_choices(var_name, default=None):
     value = os.getenv(var_name)
     if value:
@@ -66,12 +87,13 @@ with col_jwt:
         if payload:
             st.session_state["jwt"] = token
             # Store JWT in secure cookie using the CookieManager instance
+            cookie_settings = get_cookie_settings()
             cookie_manager.set(
                 cookie="ai_usage_auth",
                 val=token,
                 max_age=60*60*24*365,  # 1 year
-                secure=False,
-                same_site="Lax"
+                secure=cookie_settings["secure"],
+                same_site=cookie_settings["same_site"]
             )
             st.rerun()
         else:
