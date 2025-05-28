@@ -9,7 +9,7 @@ import extra_streamlit_components as stx
 from dotenv import load_dotenv
 
 from analytics_utils import prepare_dataframe as analytics_prepare_dataframe
-from auth import create_jwt, validate_jwt
+from auth import create_jwt, validate_jwt, can_modify_entry
 from form_utils import (
     WORKFLOW_IMPACT_MAP,
     REVERSE_WORKFLOW_IMPACT_MAP,
@@ -73,33 +73,45 @@ if jwt_cookie:
     payload = validate_jwt(jwt_cookie)
     if payload:
         st.session_state['jwt'] = jwt_cookie
-        st.toast("JWT from cookie validated successfully!", icon="✅")
+        # st.toast("JWT from cookie validated successfully!", icon="✅")
     else:
         st.session_state.pop('jwt', None)
-        st.toast("JWT from cookie is invalid or expired.", icon="⚠️")
+        # st.toast("JWT from cookie is invalid or expired.", icon="⚠️")
 
-# JWT Button at the top
-col_jwt, col_spacer = st.columns([3, 7])
-with col_jwt:
-    if st.button("🔑 Mock login", help="Generate and validate a JWT for Suhail Khan"):
-        token = create_jwt()
-        payload = validate_jwt(token)
-        if payload:
-            st.session_state["jwt"] = token
-            # Store JWT in secure cookie using the CookieManager instance
-            cookie_settings = get_cookie_settings()
-            cookie_manager.set(
-                cookie="ai_usage_auth",
-                val=token,
-                max_age=60*60*24*365,  # 1 year
-                secure=cookie_settings["secure"],
-                same_site=cookie_settings["same_site"]
-            )
-            st.rerun()
-        else:
-            # Set a flag to show toast after rerun
-            st.session_state.show_jwt_toast = "JWT validation failed."
-            st.session_state.jwt_toast_icon = "❌"
+with st.sidebar:
+    with st.form("jwt_form", clear_on_submit=True):
+        name_input = st.text_input(
+            "🔑 Mock login",
+            placeholder="Enter name",
+            help="Enter your name and press Enter/Return to log in",
+            key="jwt_name_form_input"
+        )
+        submitted = st.form_submit_button("Log in", use_container_width=True)
+        
+        if submitted:
+            name_input = name_input.strip()
+            if not name_input:
+                st.session_state.show_jwt_toast = "Please enter a name first."
+                st.session_state.jwt_toast_icon = "⚠️"
+            else:
+                token = create_jwt(subject=name_input)
+                payload = validate_jwt(token)
+                if payload:
+                    st.session_state["jwt"] = token
+                    # Store JWT in secure cookie using the CookieManager instance
+                    cookie_settings = get_cookie_settings()
+                    cookie_manager.set(
+                        cookie="ai_usage_auth",
+                        val=token,
+                        max_age=60*60*24*365,  # 1 year
+                        secure=cookie_settings["secure"],
+                        same_site=cookie_settings["same_site"]
+                    )
+                    st.session_state.show_jwt_toast = f"Token generated for {name_input}!"
+                    st.session_state.jwt_toast_icon = "✅"
+                else:
+                    st.session_state.show_jwt_toast = "Token validation failed."
+                    st.session_state.jwt_toast_icon = "❌"
 
 # Show JWT toast if flag is set
 if 'show_jwt_toast' in st.session_state:
@@ -286,9 +298,25 @@ with tab3:
                     st.rerun()
             
             with col2:
-                if st.button("✏️ Edit Selected Entry", help="This will open an edit form for the selected entry"):
+                # Check authorization for edit button
+                original_entry = st.session_state.entries[selected_index]
+                current_jwt = st.session_state.get('jwt')
+                
+                if not current_jwt:
+                    edit_button_label = "🔒 Log in to Edit"
+                    edit_button_disabled = True
+                    edit_button_help = "Please log in to edit entries"
+                elif not can_modify_entry(current_jwt, original_entry['Name']):
+                    edit_button_label = "🚫 Can't Edit (Not Your Entry)"
+                    edit_button_disabled = True
+                    edit_button_help = "You can only edit your own entries"
+                else:
+                    edit_button_label = "✏️ Edit Selected Entry"
+                    edit_button_disabled = False
+                    edit_button_help = "This will open an edit form for the selected entry"
+                
+                if st.button(edit_button_label, help=edit_button_help, disabled=edit_button_disabled):
                     # Store the selected entry data in session state for editing
-                    original_entry = st.session_state.entries[selected_index]
                     
                     # Handle manager - only include if it's in the current choices, otherwise empty
                     manager_val = original_entry['Manager']
@@ -319,9 +347,25 @@ with tab3:
                     st.rerun()
             
             with col3:
-                if st.button("🗑️ Delete Selected Entry", help="This will permanently delete the selected entry", type="secondary"):
+                # Check authorization for delete button
+                original_entry = st.session_state.entries[selected_index]
+                current_jwt = st.session_state.get('jwt')
+                
+                if not current_jwt:
+                    delete_button_label = "🔒 Log in to Delete"
+                    delete_button_disabled = True
+                    delete_button_help = "Please log in to delete entries"
+                elif not can_modify_entry(current_jwt, original_entry['Name']):
+                    delete_button_label = "🚫 Can't Delete (Not Your Entry)"
+                    delete_button_disabled = True
+                    delete_button_help = "You can only delete your own entries"
+                else:
+                    delete_button_label = "🗑️ Delete Selected Entry"
+                    delete_button_disabled = False
+                    delete_button_help = "This will permanently delete the selected entry"
+                
+                if st.button(delete_button_label, help=delete_button_help, disabled=delete_button_disabled, type="secondary"):
                     # Show confirmation dialog
-                    original_entry = st.session_state.entries[selected_index]
                     name = original_entry['Name']
                     
                     # Format the date from the timestamp for display
@@ -351,6 +395,15 @@ with tab3:
                 col1, col2, col3 = st.columns([1, 1, 2])
                 with col1:
                     if st.button("✅ Yes, Delete", type="primary"):
+                        # Check authorization again before deleting
+                        current_jwt = st.session_state.get('jwt')
+                        original_entry = st.session_state.entries[entry_info['index']]
+                        
+                        if not current_jwt or not can_modify_entry(current_jwt, original_entry['Name']):
+                            # This shouldn't happen since button is disabled, but just in case
+                            st.error("Authorization failed. Please refresh the page and try again.")
+                            st.rerun()
+                        
                         # Delete the entry
                         del st.session_state.entries[entry_info['index']]
                         save_entries(st.session_state.entries)
@@ -374,6 +427,15 @@ with tab3:
             form_data, submitted, cancelled = render_usage_form("edit_form", MANAGER_CHOICES, TOOL_CHOICES, PURPOSE_CHOICES, edit_data, "💾 Save Changes", show_cancel=True)
 
             if submitted:
+                # Check authorization again before saving changes
+                current_jwt = st.session_state.get('jwt')
+                original_entry = st.session_state.entries[edit_data['index']]
+                
+                if not current_jwt or not can_modify_entry(current_jwt, original_entry['Name']):
+                    # This shouldn't happen since button is disabled, but just in case
+                    st.error("Authorization failed. Please refresh the page and try again.")
+                    st.rerun()
+                
                 # Extract single values from multiselects
                 manager_val = form_data['manager'][0] if form_data['manager'] else ""
                 ai_tool_val = form_data['ai_tool'][0] if form_data['ai_tool'] else ""

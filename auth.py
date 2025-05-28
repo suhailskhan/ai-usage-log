@@ -19,14 +19,16 @@ JWT_ISSUER = "AI Usage Log"
 JWT_SUBJECT = "Suhail Khan"
 JWT_EXP_DELTA_SECONDS = 60 * 60 * 24 * 365  # 1 year
 
-def create_jwt():
+def create_jwt(subject=None):
+    if subject is None:
+        subject = JWT_SUBJECT
     now = int(time.time())
     payload = {
         "iss": JWT_ISSUER,
         "iat": now,
         "exp": now + JWT_EXP_DELTA_SECONDS,
         "aud": JWT_AUDIENCE,
-        "sub": JWT_SUBJECT
+        "sub": subject
     }
     token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
     return token
@@ -37,3 +39,18 @@ def validate_jwt(token):
         return payload
     except jwt.PyJWTError as e:
         return None
+
+def can_modify_entry(jwt_token, entry_name):
+    """
+    Check if the current user (based on JWT subject) can modify an entry.
+    Returns True if the JWT subject matches the entry name, False otherwise.
+    """
+    if not jwt_token or not entry_name:
+        return False
+    
+    payload = validate_jwt(jwt_token)
+    if not payload:
+        return False
+    
+    jwt_subject = payload.get('sub', '')
+    return jwt_subject.lower().strip() == entry_name.lower().strip()
