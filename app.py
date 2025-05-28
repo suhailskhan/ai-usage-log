@@ -1,6 +1,7 @@
 import datetime
 import os
 import sys
+import time
 
 import pandas as pd
 import plotly.express as px
@@ -9,7 +10,15 @@ import extra_streamlit_components as stx
 from dotenv import load_dotenv
 
 from analytics_utils import prepare_dataframe as analytics_prepare_dataframe
-from auth import create_jwt, validate_jwt, can_modify_entry
+from auth import create_jwt, validate_jwt
+from auth_middleware import (
+    require_auth, 
+    with_auth_context, 
+    auth_button, 
+    AuthGuard, 
+    AuthContext,
+    get_auth_status
+)
 from form_utils import (
     WORKFLOW_IMPACT_MAP,
     REVERSE_WORKFLOW_IMPACT_MAP,
@@ -79,45 +88,76 @@ if jwt_cookie:
         # st.toast("JWT from cookie is invalid or expired.", icon="⚠️")
 
 with st.sidebar:
-    with st.form("jwt_form", clear_on_submit=True):
-        name_input = st.text_input(
-            "🔑 Mock login",
-            placeholder="Enter name",
-            help="Enter your name and press Enter/Return to log in",
-            key="jwt_name_form_input"
-        )
-        submitted = st.form_submit_button("Log in", use_container_width=True)
+    # Get current auth status
+    auth_context = AuthContext.from_session_state()
+    
+    if auth_context.is_authenticated:
+        # Show logged-in user info and logout button
+        st.success(f"👤 Logged in as: **{auth_context.username}**")
         
-        if submitted:
-            name_input = name_input.strip()
-            if not name_input:
-                st.session_state.show_jwt_toast = "Please enter a name first."
-                st.session_state.jwt_toast_icon = "⚠️"
-            else:
-                token = create_jwt(subject=name_input)
-                payload = validate_jwt(token)
-                if payload:
-                    st.session_state["jwt"] = token
-                    # Store JWT in secure cookie using the CookieManager instance
-                    cookie_settings = get_cookie_settings()
-                    cookie_manager.set(
-                        cookie="ai_usage_auth",
-                        val=token,
-                        max_age=60*60*24*365,  # 1 year
-                        secure=cookie_settings["secure"],
-                        same_site=cookie_settings["same_site"]
-                    )
-                    st.session_state.show_jwt_toast = f"Token generated for {name_input}!"
-                    st.session_state.jwt_toast_icon = "✅"
+        if st.button("🚪 Log out", use_container_width=True):
+            # Clear session state
+            st.session_state.pop('jwt', None)
+            # Clear cookie (safely handle case where cookie doesn't exist)
+            try:
+                cookie_manager.delete('ai_usage_auth')
+            except KeyError:
+                # Cookie doesn't exist, which is fine
+                pass
+            st.session_state.show_jwt_toast = "Logged out successfully!"
+            st.session_state.jwt_toast_icon = "👋"
+            # Set a flag to trigger rerun after the cookie is deleted
+            st.session_state.logout_success = True
+    else:
+        # Show login form
+        with st.form("jwt_form", clear_on_submit=True):
+            name_input = st.text_input(
+                "🔑 Mock login",
+                placeholder="Enter name",
+                help="Enter your name and press Enter/Return to log in",
+                key="jwt_name_form_input"
+            )
+            submitted = st.form_submit_button("Log in", use_container_width=True)
+            
+            if submitted:
+                name_input = name_input.strip()
+                if not name_input:
+                    st.session_state.show_jwt_toast = "Please enter a name first."
+                    st.session_state.jwt_toast_icon = "⚠️"
                 else:
-                    st.session_state.show_jwt_toast = "Token validation failed."
-                    st.session_state.jwt_toast_icon = "❌"
+                    token = create_jwt(subject=name_input)
+                    payload = validate_jwt(token)
+                    if payload:
+                        st.session_state["jwt"] = token
+                        # Store JWT in secure cookie using the CookieManager instance
+                        cookie_settings = get_cookie_settings()
+                        cookie_manager.set(
+                            cookie="ai_usage_auth",
+                            val=token,
+                            max_age=60*60*24*365,  # 1 year
+                            secure=cookie_settings["secure"],
+                            same_site=cookie_settings["same_site"]
+                        )
+                        st.session_state.show_jwt_toast = f"Token generated for {name_input}!"
+                        st.session_state.jwt_toast_icon = "✅"
+                        # Set a flag to trigger rerun after the cookie is set
+                        st.session_state.login_success = True
+                    else:
+                        st.session_state.show_jwt_toast = "Token validation failed."
+                        st.session_state.jwt_toast_icon = "❌"
 
 # Show JWT toast if flag is set
 if 'show_jwt_toast' in st.session_state:
     st.toast(st.session_state.show_jwt_toast, icon=st.session_state.jwt_toast_icon)
     del st.session_state.show_jwt_toast
     del st.session_state.jwt_toast_icon
+
+# Handle login/logout success - rerun after cookie operations complete
+if 'login_success' in st.session_state or 'logout_success' in st.session_state:
+    st.session_state.pop('login_success', None)
+    st.session_state.pop('logout_success', None)
+    time.sleep(0.25)
+    st.rerun()
 
 def load_entries():
     return storage.load()
@@ -232,9 +272,7 @@ with tab3:
     
     if df.empty:
         st.write("No submissions yet.")
-    else:
-        st.markdown("💡 **Tip:** Click the checkbox (appears on hover) at the far left of any row to select it → Duplicate, Edit, and Delete buttons will appear")
-            
+    else:  
         # Enable row selection for duplication
         event = st.dataframe(
             df,
@@ -242,150 +280,144 @@ with tab3:
             selection_mode="single-row"
         )
         
-        # Show duplicate, edit, and delete buttons when a row is selected
-        if event.selection.rows:
-            selected_index = event.selection.rows[0]
-            selected_entry = df.iloc[selected_index]
+        # Always show buttons, but disable when no row is selected
+        has_selection = bool(event.selection.rows)
+        selected_index = event.selection.rows[0] if has_selection else None
+        
+        # Create three columns for the buttons
+        col1, col2, col3 = st.columns(3)
             
-            # Create three columns for the buttons
-            col1, col2, col3 = st.columns(3)
+        with col1:
+            duplicate_clicked = st.button(
+                "📋 Duplicate Entry", 
+                help="This will pre-fill the survey with data from the selected entry" if has_selection else "Select a row to duplicate an entry",
+                disabled=not has_selection
+            )
             
-            with col1:
-                if st.button("📋 Duplicate Selected Entry", help="This will pre-fill the survey with data from the selected entry"):
-                    # Store the selected entry data in session state for form pre-filling
-                    original_entry = st.session_state.entries[selected_index]
-                    
-                    # Handle manager - only include if it's in the current choices, otherwise empty
-                    manager_val = original_entry['Manager']
-                    manager_default = [manager_val] if manager_val in MANAGER_CHOICES else []
-                    
-                    # Handle AI tool - only include if it's in the current choices, otherwise empty
-                    ai_tool_val = original_entry['AI Tool']
-                    ai_tool_default = [ai_tool_val] if ai_tool_val in TOOL_CHOICES else []
-                    
-                    # Handle purpose - only include if it's in the current choices, otherwise empty
-                    purpose_val = original_entry['Purpose']
-                    purpose_default = [purpose_val] if purpose_val in PURPOSE_CHOICES else []
-                    
-                    st.session_state.duplicate_entry = {
-                        'name': original_entry['Name'],
-                        'manager': manager_default,
-                        'ai_tool': ai_tool_default,
-                        'purpose': purpose_default,
-                        'duration': original_entry['Duration'],
-                        'complexity': REVERSE_TASK_COMPLEXITY_MAP.get(original_entry['Task Complexity'], 'Easy'),
-                        'satisfaction': original_entry['Satisfaction'],
-                        'time_without_ai': original_entry['Time Without AI'],
-                        'workflow_impact': REVERSE_WORKFLOW_IMPACT_MAP.get(original_entry['Workflow Impact'], 'Little to none'),
-                        'result': original_entry['Result/Outcome'],
-                        'notes': original_entry.get('Notes', '')
-                    }
-                    
-                    # Format the date from the timestamp
-                    timestamp = original_entry['Timestamp']
-                    if isinstance(timestamp, str):
-                        try:
-                            date_obj = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                            formatted_date = date_obj.strftime('%m/%d/%Y')
-                        except:
-                            formatted_date = timestamp.split('T')[0] if 'T' in timestamp else timestamp
-                    else:
-                        formatted_date = str(timestamp)
-                    
-                    name = original_entry['Name']
-                    # Set a flag to show toast after rerun
-                    st.session_state.show_duplicate_toast = f"{name}'s entry from {formatted_date} has been copied. Switch to the Survey tab to submit."
-                    st.rerun()
-            
-            with col2:
-                # Check authorization for edit button
+            if duplicate_clicked and has_selection:
+                # Store the selected entry data in session state for form pre-filling
                 original_entry = st.session_state.entries[selected_index]
-                current_jwt = st.session_state.get('jwt')
                 
-                if not current_jwt:
-                    edit_button_label = "🔒 Log in to Edit"
-                    edit_button_disabled = True
-                    edit_button_help = "Please log in to edit entries"
-                elif not can_modify_entry(current_jwt, original_entry['Name']):
-                    edit_button_label = "🚫 Can't Edit (Not Your Entry)"
-                    edit_button_disabled = True
-                    edit_button_help = "You can only edit your own entries"
+                # Handle manager - only include if it's in the current choices, otherwise empty
+                manager_val = original_entry['Manager']
+                manager_default = [manager_val] if manager_val in MANAGER_CHOICES else []
+                
+                # Handle AI tool - only include if it's in the current choices, otherwise empty
+                ai_tool_val = original_entry['AI Tool']
+                ai_tool_default = [ai_tool_val] if ai_tool_val in TOOL_CHOICES else []
+                
+                # Handle purpose - only include if it's in the current choices, otherwise empty
+                purpose_val = original_entry['Purpose']
+                purpose_default = [purpose_val] if purpose_val in PURPOSE_CHOICES else []
+                
+                st.session_state.duplicate_entry = {
+                    'name': original_entry['Name'],
+                    'manager': manager_default,
+                    'ai_tool': ai_tool_default,
+                    'purpose': purpose_default,
+                    'duration': original_entry['Duration'],
+                    'complexity': REVERSE_TASK_COMPLEXITY_MAP.get(original_entry['Task Complexity'], 'Easy'),
+                    'satisfaction': original_entry['Satisfaction'],
+                    'time_without_ai': original_entry['Time Without AI'],
+                    'workflow_impact': REVERSE_WORKFLOW_IMPACT_MAP.get(original_entry['Workflow Impact'], 'Little to none'),
+                    'result': original_entry['Result/Outcome'],
+                    'notes': original_entry.get('Notes', '')
+                }
+                
+                # Format the date from the timestamp
+                timestamp = original_entry['Timestamp']
+                if isinstance(timestamp, str):
+                    try:
+                        date_obj = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        formatted_date = date_obj.strftime('%m/%d/%Y')
+                    except:
+                        formatted_date = timestamp.split('T')[0] if 'T' in timestamp else timestamp
                 else:
-                    edit_button_label = "✏️ Edit Selected Entry"
-                    edit_button_disabled = False
-                    edit_button_help = "This will open an edit form for the selected entry"
+                    formatted_date = str(timestamp)
                 
-                if st.button(edit_button_label, help=edit_button_help, disabled=edit_button_disabled):
-                    # Store the selected entry data in session state for editing
-                    
-                    # Handle manager - only include if it's in the current choices, otherwise empty
-                    manager_val = original_entry['Manager']
-                    manager_default = [manager_val] if manager_val in MANAGER_CHOICES else []
-                    
-                    # Handle AI tool - only include if it's in the current choices, otherwise empty
-                    ai_tool_val = original_entry['AI Tool']
-                    ai_tool_default = [ai_tool_val] if ai_tool_val in TOOL_CHOICES else []
-                    
-                    # Handle purpose - only include if it's in the current choices, otherwise empty
-                    purpose_val = original_entry['Purpose']
-                    purpose_default = [purpose_val] if purpose_val in PURPOSE_CHOICES else []
-                    
-                    st.session_state.edit_entry = {
-                        'index': selected_index,
-                        'name': original_entry['Name'],
-                        'manager': manager_default,
-                        'ai_tool': ai_tool_default,
-                        'purpose': purpose_default,
-                        'duration': original_entry['Duration'],
-                        'complexity': REVERSE_TASK_COMPLEXITY_MAP.get(original_entry['Task Complexity'], 'Easy'),
-                        'satisfaction': original_entry['Satisfaction'],
-                        'time_without_ai': original_entry['Time Without AI'],
-                        'workflow_impact': REVERSE_WORKFLOW_IMPACT_MAP.get(original_entry['Workflow Impact'], 'Little to none'),
-                        'result': original_entry['Result/Outcome'],
-                        'notes': original_entry.get('Notes', '')
-                    }
-                    st.rerun()
+                name = original_entry['Name']
+                # Set a flag to show toast after rerun
+                st.session_state.show_duplicate_toast = f"{name}'s entry from {formatted_date} has been copied. Switch to the Survey tab to submit."
+                st.rerun()
+        
+        with col2:
+            # Edit button - always show, middleware handles all auth and selection logic
+            original_entry = st.session_state.entries[selected_index] if has_selection else None
+            entry_name = original_entry['Name'] if original_entry else None
             
-            with col3:
-                # Check authorization for delete button
-                original_entry = st.session_state.entries[selected_index]
-                current_jwt = st.session_state.get('jwt')
+            edit_clicked = auth_button(
+                auth_context=AuthContext.from_session_state(),
+                label="✏️ Edit Entry",
+                entry_name=entry_name,
+                require_entry_ownership=True,
+                help="This will open an edit form for the selected entry"
+            )
                 
-                if not current_jwt:
-                    delete_button_label = "🔒 Log in to Delete"
-                    delete_button_disabled = True
-                    delete_button_help = "Please log in to delete entries"
-                elif not can_modify_entry(current_jwt, original_entry['Name']):
-                    delete_button_label = "🚫 Can't Delete (Not Your Entry)"
-                    delete_button_disabled = True
-                    delete_button_help = "You can only delete your own entries"
+            if edit_clicked and has_selection:
+                # Handle manager - only include if it's in the current choices, otherwise empty
+                manager_val = original_entry['Manager']
+                manager_default = [manager_val] if manager_val in MANAGER_CHOICES else []
+                
+                # Handle AI tool - only include if it's in the current choices, otherwise empty
+                ai_tool_val = original_entry['AI Tool']
+                ai_tool_default = [ai_tool_val] if ai_tool_val in TOOL_CHOICES else []
+                
+                # Handle purpose - only include if it's in the current choices, otherwise empty
+                purpose_val = original_entry['Purpose']
+                purpose_default = [purpose_val] if purpose_val in PURPOSE_CHOICES else []
+                
+                st.session_state.edit_entry = {
+                    'index': selected_index,
+                    'name': original_entry['Name'],
+                    'manager': manager_default,
+                    'ai_tool': ai_tool_default,
+                    'purpose': purpose_default,
+                    'duration': original_entry['Duration'],
+                    'complexity': REVERSE_TASK_COMPLEXITY_MAP.get(original_entry['Task Complexity'], 'Easy'),
+                    'satisfaction': original_entry['Satisfaction'],
+                    'time_without_ai': original_entry['Time Without AI'],
+                    'workflow_impact': REVERSE_WORKFLOW_IMPACT_MAP.get(original_entry['Workflow Impact'], 'Little to none'),
+                    'result': original_entry['Result/Outcome'],
+                    'notes': original_entry.get('Notes', '')
+                }
+                st.rerun()
+        
+        with col3:
+            # Delete button - always show, middleware handles all auth and selection logic
+            original_entry = st.session_state.entries[selected_index] if has_selection else None
+            entry_name = original_entry['Name'] if original_entry else None
+            
+            delete_clicked = auth_button(
+                auth_context=AuthContext.from_session_state(),
+                label="🗑️ Delete Entry",
+                entry_name=entry_name,
+                require_entry_ownership=True,
+                type="secondary",
+                help="This will permanently delete the selected entry"
+            )
+                
+            if delete_clicked and has_selection:
+                # Show confirmation dialog
+                name = original_entry['Name']
+                
+                # Format the date from the timestamp for display
+                timestamp = original_entry['Timestamp']
+                if isinstance(timestamp, str):
+                    try:
+                        date_obj = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        formatted_date = date_obj.strftime('%m/%d/%Y')
+                    except:
+                        formatted_date = timestamp.split('T')[0] if 'T' in timestamp else timestamp
                 else:
-                    delete_button_label = "🗑️ Delete Selected Entry"
-                    delete_button_disabled = False
-                    delete_button_help = "This will permanently delete the selected entry"
+                    formatted_date = str(timestamp)
                 
-                if st.button(delete_button_label, help=delete_button_help, disabled=delete_button_disabled, type="secondary"):
-                    # Show confirmation dialog
-                    name = original_entry['Name']
-                    
-                    # Format the date from the timestamp for display
-                    timestamp = original_entry['Timestamp']
-                    if isinstance(timestamp, str):
-                        try:
-                            date_obj = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                            formatted_date = date_obj.strftime('%m/%d/%Y')
-                        except:
-                            formatted_date = timestamp.split('T')[0] if 'T' in timestamp else timestamp
-                    else:
-                        formatted_date = str(timestamp)
-                    
-                    # Store the entry to delete in session state for confirmation
-                    st.session_state.entry_to_delete = {
-                        'index': selected_index,
-                        'name': name,
-                        'date': formatted_date
-                    }
-                    st.rerun()
+                # Store the entry to delete in session state for confirmation
+                st.session_state.entry_to_delete = {
+                    'index': selected_index,
+                    'name': name,
+                    'date': formatted_date
+                }
+                st.rerun()
             
             # Show confirmation dialog if an entry is marked for deletion
             if 'entry_to_delete' in st.session_state:
@@ -394,22 +426,18 @@ with tab3:
                 
                 col1, col2, col3 = st.columns([1, 1, 2])
                 with col1:
-                    if st.button("✅ Yes, Delete", type="primary"):
-                        # Check authorization again before deleting
-                        current_jwt = st.session_state.get('jwt')
-                        original_entry = st.session_state.entries[entry_info['index']]
-                        
-                        if not current_jwt or not can_modify_entry(current_jwt, original_entry['Name']):
-                            # This shouldn't happen since button is disabled, but just in case
-                            st.error("Authorization failed. Please refresh the page and try again.")
+                    # Protected delete confirmation using AuthGuard
+                    with AuthGuard(
+                        require_entry_ownership=True, 
+                        entry_name=entry_info['name']
+                    ) as auth_context:
+                        if auth_context.is_authorized and st.button("✅ Yes, Delete", type="primary"):
+                            # Delete the entry
+                            del st.session_state.entries[entry_info['index']]
+                            save_entries(st.session_state.entries)
+                            del st.session_state.entry_to_delete
+                            st.toast(f"Deleted {entry_info['name']}'s entry from {entry_info['date']}", icon="🗑️")
                             st.rerun()
-                        
-                        # Delete the entry
-                        del st.session_state.entries[entry_info['index']]
-                        save_entries(st.session_state.entries)
-                        del st.session_state.entry_to_delete
-                        st.toast(f"Deleted {entry_info['name']}'s entry from {entry_info['date']}", icon="🗑️")
-                        st.rerun()
                 
                 with col2:
                     if st.button("❌ Cancel"):
@@ -419,21 +447,28 @@ with tab3:
         # Show edit form if an entry is being edited
         if 'edit_entry' in st.session_state:
             edit_data = st.session_state.edit_entry
-            st.divider()
-            st.subheader("Edit Entry")
-            st.info("✏️ Modify the fields below and click 'Save Changes' to update the entry.")
+            original_entry = st.session_state.entries[edit_data['index']]
             
-            # Render the edit form
-            form_data, submitted, cancelled = render_usage_form("edit_form", MANAGER_CHOICES, TOOL_CHOICES, PURPOSE_CHOICES, edit_data, "💾 Save Changes", show_cancel=True)
-
-            if submitted:
-                # Check authorization again before saving changes
-                current_jwt = st.session_state.get('jwt')
-                original_entry = st.session_state.entries[edit_data['index']]
+            # Use AuthGuard context manager for the entire edit section
+            with AuthGuard(
+                message="Please log in to edit entries",
+                require_entry_ownership=True,
+                entry_name=original_entry['Name']
+            ) as auth_context:
                 
-                if not current_jwt or not can_modify_entry(current_jwt, original_entry['Name']):
-                    # This shouldn't happen since button is disabled, but just in case
-                    st.error("Authorization failed. Please refresh the page and try again.")
+                if not auth_context.is_authorized:
+                    # Clear edit state if not authorized
+                    del st.session_state.edit_entry
+                    st.rerun()
+                
+                st.divider()
+                st.subheader("Edit Entry")
+                st.info("✏️ Modify the fields below and click 'Save Changes' to update the entry.")
+                
+                # Render the edit form
+                form_data, submitted, cancelled = render_usage_form("edit_form", MANAGER_CHOICES, TOOL_CHOICES, PURPOSE_CHOICES, edit_data, "💾 Save Changes", show_cancel=True)
+
+                if submitted:
                     st.rerun()
                 
                 # Extract single values from multiselects
