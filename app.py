@@ -1,9 +1,12 @@
 import datetime
 import os
+import time
+import jwt
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import extra_streamlit_components as stx
 from dotenv import load_dotenv
 
 from analytics_utils import prepare_dataframe as analytics_prepare_dataframe
@@ -12,8 +15,6 @@ from visualization_utils import (
     render_all_statistics,
     render_manager_statistics
 )
-
-st.set_page_config(page_title="AI Tool Usage", page_icon="📊")
 
 load_dotenv()
 def get_env_choices(var_name, default=None):
@@ -35,6 +36,51 @@ def load_entries():
 
 def save_entries(entries):
     storage.save(entries)
+
+# JWT Configuration
+JWT_SECRET = "your-very-secret-key"  # Replace with a secure secret in production
+JWT_ALGORITHM = "HS256"
+JWT_AUDIENCE = "localhost"
+JWT_ISSUER = "AI Usage Log"
+JWT_SUBJECT = "Suhail Khan"
+JWT_EXP_DELTA_SECONDS = 60 * 60 * 24 * 365  # 1 year
+
+def create_jwt():
+    now = int(time.time())
+    payload = {
+        "iss": JWT_ISSUER,
+        "iat": now,
+        "exp": now + JWT_EXP_DELTA_SECONDS,
+        "aud": JWT_AUDIENCE,
+        "sub": JWT_SUBJECT
+    }
+    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return token
+
+def validate_jwt(token):
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], audience=JWT_AUDIENCE, issuer=JWT_ISSUER)
+        return payload
+    except jwt.PyJWTError as e:
+        return None
+
+st.set_page_config(page_title="AI Tool Usage", page_icon="📊")
+st.title("AI Tool Usage")
+
+# Create a single CookieManager instance with a unique key
+cookie_manager = stx.CookieManager(key="auth_cookie_manager")
+
+# Read JWT from cookie on app load
+cookies = cookie_manager.get_all()
+jwt_cookie = cookies.get('ai_usage_auth')
+if jwt_cookie:
+    payload = validate_jwt(jwt_cookie)
+    if payload:
+        st.session_state['jwt'] = jwt_cookie
+        st.toast("JWT from cookie validated successfully!", icon="✅")
+    else:
+        st.session_state.pop('jwt', None)
+        st.toast("JWT from cookie is invalid or expired.", icon="⚠️")
 
 # Helper functions for statistics visualization
 def prepare_dataframe(entries):
@@ -216,12 +262,31 @@ def render_usage_form(form_key, default_data=None, submit_button_text="Submit", 
     
     return form_data, submitted, cancelled
 
+# JWT Button at the top
+col_jwt, col_spacer = st.columns([3, 7])
+with col_jwt:
+    if st.button("🔑 Issue JWT", help="Generate and validate a JWT for Suhail Khan"):
+        token = create_jwt()
+        payload = validate_jwt(token)
+        if payload:
+            st.session_state["jwt"] = token
+            # Store JWT in secure cookie using the CookieManager instance
+            cookie_manager.set(
+                cookie="ai_usage_auth",
+                val=token,
+                key="jwt",
+                max_age=60*60*24*365,  # 1 year
+                secure=True,
+                same_site="Strict"
+            )
+            st.success(f"JWT issued and validated for {payload['sub']}")
+        else:
+            st.error("JWT validation failed.")
+
 # Create tabs for data entry, visualization, raw data
 tab1, tab2, tab3 = st.tabs(["Survey", "Statistics", "Raw Data"])
 
 with tab1:
-    st.title("AI Tool Usage - Survey")
-
     # Check if we have a duplicated entry to pre-fill
     duplicate_data = st.session_state.get('duplicate_entry', {})
     
@@ -267,8 +332,6 @@ with tab1:
             st.toast("Submitted!", icon="✅")
 
 with tab2:
-    st.title("AI Tool Usage - Statistics")
-
     df = prepare_dataframe(st.session_state.entries)
     if df.empty:
         st.write("No data available for visualization.")
@@ -309,8 +372,6 @@ with tab2:
                         render_manager_statistics(filtered_df, selected_manager)
 
 with tab3:
-    st.title("AI Tool Usage - Raw Data")
-    
     # Show duplicate toast if flag is set
     if 'show_duplicate_toast' in st.session_state:
         st.toast(st.session_state.show_duplicate_toast, icon="📋")
@@ -321,7 +382,6 @@ with tab3:
     if df.empty:
         st.write("No submissions yet.")
     else:
-        st.subheader("Data:")
         st.markdown("💡 **Tip:** Click the checkbox (appears on hover) at the far left of any row to select it → Duplicate, Edit, and Delete buttons will appear")
             
         # Enable row selection for duplication
