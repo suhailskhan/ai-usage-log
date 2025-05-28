@@ -1,7 +1,25 @@
+import datetime
 import os
-from dotenv import load_dotenv
-load_dotenv()
 
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+from dotenv import load_dotenv
+
+from analytics_utils import (
+    prepare_dataframe as analytics_prepare_dataframe,
+    calculate_tool_effectiveness,
+    calculate_complexity_analysis,
+    calculate_manager_insights,
+    calculate_purpose_insights,
+    create_pivot_table
+)
+from storage import get_storage
+
+
+st.set_page_config(page_title="AI Tool Usage", page_icon="📊")
+
+load_dotenv()
 def get_env_choices(var_name, default=None):
     value = os.getenv(var_name)
     if value:
@@ -11,22 +29,7 @@ def get_env_choices(var_name, default=None):
 MANAGER_CHOICES = get_env_choices("MANAGER_CHOICES", ["Manager 1", "Manager 2"])
 TOOL_CHOICES = get_env_choices("TOOL_CHOICES", ["ChatGPT", "GitHub Copilot"])
 PURPOSE_CHOICES = get_env_choices("PURPOSE_CHOICES", ["Development", "Writing", "Other"])
-
 STORAGE_TYPE = os.getenv("STORAGE_TYPE", "SQLite")
-
-import streamlit as st
-st.set_page_config(page_title="AI Tool Usage", page_icon="📊")
-import pandas as pd
-from storage import get_storage
-import datetime
-from analytics_utils import (
-    prepare_dataframe as analytics_prepare_dataframe,
-    calculate_tool_effectiveness,
-    calculate_complexity_analysis,
-    calculate_manager_insights,
-    calculate_purpose_insights,
-    create_pivot_table
-)
 
 # Set storage type here
 storage = get_storage(STORAGE_TYPE)
@@ -45,7 +48,6 @@ def prepare_dataframe(entries):
 def create_purpose_distribution_chart(filtered_df):
     """Create purpose distribution pie chart"""
     st.subheader("Distribution by Purpose")
-    import plotly.express as px
     purpose_counts = filtered_df['Purpose'].value_counts().reset_index()
     purpose_counts.columns = ['Purpose', 'Count']
     fig = px.pie(purpose_counts, names='Purpose', values='Count', title='Purpose Distribution')
@@ -56,7 +58,6 @@ def create_heatmap_chart(filtered_df, title_prefix=""):
     st.subheader("Purpose vs AI Tool: Average Time Saved Heatmap")
     heatmap_df = create_pivot_table(filtered_df, "Purpose", "AI Tool", "Time Saved")
     if heatmap_df is not None and not heatmap_df.empty:
-        import plotly.express as px
         fig = px.imshow(
             heatmap_df,
             text_auto=True,
@@ -94,7 +95,6 @@ def create_satisfaction_vs_efficiency_chart(filtered_df, title_prefix=""):
     """Create satisfaction vs efficiency scatter plot"""
     st.subheader("Satisfaction vs Efficiency")
     if not filtered_df["Time Saved"].isnull().all():
-        import plotly.express as px
         hover_data = ["Purpose", "Manager"] if "Manager" in filtered_df.columns else ["Purpose"]
         fig = px.scatter(filtered_df, x="Time Saved", y="Satisfaction", color="AI Tool", hover_data=hover_data)
         title = f"{title_prefix}Satisfaction vs Time Saved" if title_prefix else "Satisfaction vs Time Saved by AI Tool"
@@ -104,7 +104,6 @@ def create_satisfaction_vs_efficiency_chart(filtered_df, title_prefix=""):
 def create_trend_analysis_charts(filtered_df, title_prefix=""):
     """Create trend and seasonality analysis charts"""
     st.subheader("Trend & Seasonality Analysis")
-    import plotly.express as px
     
     # Daily submissions trend
     daily_counts = filtered_df.resample('D', on='Timestamp').size().reset_index(name='Count')
