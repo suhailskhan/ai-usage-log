@@ -424,6 +424,12 @@ with tab2:
 
 with tab3:
     st.title("AI Tool Usage - Raw Data")
+    
+    # Show duplicate toast if flag is set
+    if 'show_duplicate_toast' in st.session_state:
+        st.toast(st.session_state.show_duplicate_toast, icon="📋")
+        del st.session_state.show_duplicate_toast
+    
     df = prepare_dataframe(st.session_state.entries)
     
     if df.empty:
@@ -490,7 +496,9 @@ with tab3:
                         formatted_date = str(timestamp)
                     
                     name = original_entry['Name']
-                    st.toast(f"{name}'s entry from {formatted_date} has been copied. Switch to the Survey tab to submit.", icon="📋")
+                    # Set a flag to show toast after rerun
+                    st.session_state.show_duplicate_toast = f"{name}'s entry from {formatted_date} has been copied. Switch to the Survey tab to submit."
+                    st.rerun()
             
             with col2:
                 if st.button("✏️ Edit Selected Entry", help="This will open an edit form for the selected entry"):
