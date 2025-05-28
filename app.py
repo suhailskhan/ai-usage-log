@@ -1,6 +1,5 @@
 import datetime
 import os
-import jwt
 
 import pandas as pd
 import plotly.express as px
@@ -9,6 +8,7 @@ import extra_streamlit_components as stx
 from dotenv import load_dotenv
 
 from analytics_utils import prepare_dataframe as analytics_prepare_dataframe
+from auth import create_jwt, validate_jwt
 from form_utils import (
     WORKFLOW_IMPACT_MAP,
     REVERSE_WORKFLOW_IMPACT_MAP,
@@ -39,37 +39,10 @@ STORAGE_TYPE = os.getenv("STORAGE_TYPE", "SQLite")
 # Set storage type here
 storage = get_storage(STORAGE_TYPE)
 
-# JWT Configuration
-JWT_SECRET = "your-very-secret-key"  # Replace with a secure secret in production
-JWT_ALGORITHM = "HS256"
-JWT_AUDIENCE = "localhost"
-JWT_ISSUER = "AI Usage Log"
-JWT_SUBJECT = "Suhail Khan"
-JWT_EXP_DELTA_SECONDS = 60 * 60 * 24 * 365  # 1 year
-
-def create_jwt():
-    now = int(time.time())
-    payload = {
-        "iss": JWT_ISSUER,
-        "iat": now,
-        "exp": now + JWT_EXP_DELTA_SECONDS,
-        "aud": JWT_AUDIENCE,
-        "sub": JWT_SUBJECT
-    }
-    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-    return token
-
-def validate_jwt(token):
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], audience=JWT_AUDIENCE, issuer=JWT_ISSUER)
-        return payload
-    except jwt.PyJWTError as e:
-        return None
-
 st.set_page_config(page_title="AI Tool Usage", page_icon="📊")
 st.title("AI Tool Usage")
 
-# Create a single CookieManager instance with a unique key
+# Create CookieManager instance with a unique key
 cookie_manager = stx.CookieManager(key="auth_cookie_manager")
 
 # Read JWT from cookie on app load
@@ -87,7 +60,7 @@ if jwt_cookie:
 # JWT Button at the top
 col_jwt, col_spacer = st.columns([3, 7])
 with col_jwt:
-    if st.button("🔑 Issue JWT", help="Generate and validate a JWT for Suhail Khan"):
+    if st.button("🔑 Mock login", help="Generate and validate a JWT for Suhail Khan"):
         token = create_jwt()
         payload = validate_jwt(token)
         if payload:
@@ -96,14 +69,22 @@ with col_jwt:
             cookie_manager.set(
                 cookie="ai_usage_auth",
                 val=token,
-                key="jwt",
                 max_age=60*60*24*365,  # 1 year
-                secure=True,
-                same_site="Strict"
+                secure=False,
+                same_site="Lax"
             )
-            st.success(f"JWT issued and validated for {payload['sub']}")
+            st.rerun()
         else:
-            st.error("JWT validation failed.")
+            # Set a flag to show toast after rerun
+            st.session_state.show_jwt_toast = "JWT validation failed."
+            st.session_state.jwt_toast_icon = "❌"
+
+# Show JWT toast if flag is set
+if 'show_jwt_toast' in st.session_state:
+    st.toast(st.session_state.show_jwt_toast, icon=st.session_state.jwt_toast_icon)
+    del st.session_state.show_jwt_toast
+    del st.session_state.jwt_toast_icon
+
 def load_entries():
     return storage.load()
 
