@@ -23,18 +23,18 @@ def create_purpose_distribution_chart(filtered_df):
 
 
 def create_heatmap_chart(filtered_df, title_prefix=""):
-    """Create purpose vs AI tool heatmap"""
-    st.subheader("Purpose vs AI Tool: Average Time Saved Heatmap")
-    heatmap_df = create_pivot_table(filtered_df, "Purpose", "AI Tool", "Time Saved")
+    """Create purpose vs AI tool heatmap showing average duration"""
+    st.subheader("Purpose vs AI Tool: Average Duration Heatmap")
+    heatmap_df = create_pivot_table(filtered_df, "Purpose", "AI Tool", "Duration")
     if heatmap_df is not None and not heatmap_df.empty:
         fig = px.imshow(
             heatmap_df,
             text_auto=True,
             color_continuous_scale="Blues",
             aspect="auto",
-            labels=dict(x="AI Tool", y="Purpose", color="Avg Time Saved (min)")
+            labels=dict(x="AI Tool", y="Purpose", color="Avg Duration (min)")
         )
-        title = f"{title_prefix}Average Time Saved by Purpose and AI Tool" if title_prefix else "Average Time Saved by Purpose and AI Tool"
+        title = f"{title_prefix}Average Duration by Purpose and AI Tool" if title_prefix else "Average Duration by Purpose and AI Tool"
         fig.update_layout(title=title)
         st.plotly_chart(fig, use_container_width=True)
     else:
@@ -56,25 +56,6 @@ def create_tool_effectiveness_table(filtered_df):
         st.dataframe(tool_stats)
 
 
-def create_complexity_vs_impact_table(filtered_df):
-    """Create complexity vs impact analysis table"""
-    st.subheader("Complexity vs Impact")
-    complexity_stats = calculate_complexity_analysis(filtered_df)
-    if not complexity_stats.empty:
-        st.dataframe(complexity_stats)
-
-
-def create_satisfaction_vs_efficiency_chart(filtered_df, title_prefix=""):
-    """Create satisfaction vs efficiency scatter plot"""
-    st.subheader("Satisfaction vs Efficiency")
-    if not filtered_df["Time Saved"].isnull().all():
-        hover_data = ["Purpose", "Manager"] if "Manager" in filtered_df.columns else ["Purpose"]
-        fig = px.scatter(filtered_df, x="Time Saved", y="Satisfaction", color="AI Tool", hover_data=hover_data)
-        title = f"{title_prefix}Satisfaction vs Time Saved" if title_prefix else "Satisfaction vs Time Saved by AI Tool"
-        fig.update_layout(title=title)
-        st.plotly_chart(fig, use_container_width=True)
-
-
 def create_trend_analysis_charts(filtered_df, title_prefix=""):
     """Create trend and seasonality analysis charts"""
     st.subheader("Trend & Seasonality Analysis")
@@ -85,10 +66,10 @@ def create_trend_analysis_charts(filtered_df, title_prefix=""):
     fig = px.line(daily_counts, x="Timestamp", y="Count", title=title)
     st.plotly_chart(fig, use_container_width=True)
     
-    # Weekly average time saved trend
-    weekly_avg_ts = filtered_df.resample('W', on='Timestamp')["Time Saved"].mean().reset_index()
-    title = f"{title_prefix}Weekly Avg Time Saved" if title_prefix else "Weekly Average Time Saved"
-    fig2 = px.line(weekly_avg_ts, x="Timestamp", y="Time Saved", title=title)
+    # Weekly average duration trend
+    weekly_avg_duration = filtered_df.resample('W', on='Timestamp')["Duration"].mean().reset_index()
+    title = f"{title_prefix}Weekly Avg Duration" if title_prefix else "Weekly Average Duration"
+    fig2 = px.line(weekly_avg_duration, x="Timestamp", y="Duration", title=title)
     st.plotly_chart(fig2, use_container_width=True)
 
 
@@ -114,8 +95,6 @@ def render_all_statistics(filtered_df):
     create_heatmap_chart(filtered_df)
     create_duration_by_tool_chart(filtered_df)
     create_tool_effectiveness_table(filtered_df)
-    create_complexity_vs_impact_table(filtered_df)
-    create_satisfaction_vs_efficiency_chart(filtered_df)
     create_manager_insights_table(filtered_df)
     create_purpose_insights_table(filtered_df)
     create_trend_analysis_charts(filtered_df)
@@ -128,8 +107,6 @@ def render_manager_statistics(filtered_df, manager_name):
     create_heatmap_chart(filtered_df, title_prefix)
     create_duration_by_tool_chart(filtered_df)
     create_tool_effectiveness_table(filtered_df)
-    create_complexity_vs_impact_table(filtered_df)
-    create_satisfaction_vs_efficiency_chart(filtered_df, title_prefix)
     create_trend_analysis_charts(filtered_df, title_prefix)
 
 
@@ -140,6 +117,4 @@ def render_user_statistics(filtered_df, username):
     create_heatmap_chart(filtered_df, title_prefix)
     create_duration_by_tool_chart(filtered_df)
     create_tool_effectiveness_table(filtered_df)
-    create_complexity_vs_impact_table(filtered_df)
-    create_satisfaction_vs_efficiency_chart(filtered_df, title_prefix)
     create_trend_analysis_charts(filtered_df, title_prefix)

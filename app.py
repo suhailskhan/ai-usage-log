@@ -199,15 +199,10 @@ with tab1:
         manager_val = form_data['manager'][0] if form_data['manager'] else ""
         ai_tool_val = form_data['ai_tool'][0] if form_data['ai_tool'] else ""
         purpose_val = form_data['purpose'][0] if form_data['purpose'] else ""
-        complexity_val = form_data['complexity'] if form_data['complexity'] != "(Select complexity)" else ""
-        complexity_num = TASK_COMPLEXITY_MAP.get(complexity_val, None)
-        workflow_impact_val = form_data['workflow_impact'] if form_data['workflow_impact'] != "(Select impact)" else ""
-        workflow_impact_num = WORKFLOW_IMPACT_MAP.get(workflow_impact_val, None)
         
         is_valid, error_message = validate_form_submission(
             form_data['name'], manager_val, ai_tool_val, purpose_val, form_data['result'], 
-            complexity_val, form_data['satisfaction'], form_data['time_without_ai'], 
-            workflow_impact_val, form_data['duration'], workflow_impact_num, complexity_num
+            form_data['duration']
         )
         
         if not is_valid:
@@ -216,8 +211,7 @@ with tab1:
         else:
             entry = create_entry_dict(
                 form_data['name'], manager_val, ai_tool_val, purpose_val, form_data['duration'], 
-                complexity_num, form_data['satisfaction'], form_data['time_without_ai'], 
-                workflow_impact_num, form_data['result'], form_data['notes']
+                form_data['result'], form_data['notes']
             )
             st.session_state.entries.append(entry)
             save_entries(st.session_state.entries)
@@ -298,10 +292,6 @@ with tab2:
                             'ai_tool': ai_tool_default,
                             'purpose': purpose_default,
                             'duration': original_entry['Duration'],
-                            'complexity': REVERSE_TASK_COMPLEXITY_MAP.get(original_entry['Task Complexity'], 'Easy'),
-                            'satisfaction': original_entry['Satisfaction'],
-                            'time_without_ai': original_entry['Time Without AI'],
-                            'workflow_impact': REVERSE_WORKFLOW_IMPACT_MAP.get(original_entry['Workflow Impact'], 'Little to none'),
                             'result': original_entry['Result/Outcome'],
                             'notes': original_entry.get('Notes', '')
                         }
@@ -355,10 +345,6 @@ with tab2:
                             'ai_tool': ai_tool_default,
                             'purpose': purpose_default,
                             'duration': original_entry['Duration'],
-                            'complexity': REVERSE_TASK_COMPLEXITY_MAP.get(original_entry['Task Complexity'], 'Easy'),
-                            'satisfaction': original_entry['Satisfaction'],
-                            'time_without_ai': original_entry['Time Without AI'],
-                            'workflow_impact': REVERSE_WORKFLOW_IMPACT_MAP.get(original_entry['Workflow Impact'], 'Little to none'),
                             'result': original_entry['Result/Outcome'],
                             'notes': original_entry.get('Notes', '')
                         }
@@ -457,15 +443,10 @@ with tab2:
                         manager_val = form_data['manager'][0] if form_data['manager'] else ""
                         ai_tool_val = form_data['ai_tool'][0] if form_data['ai_tool'] else ""
                         purpose_val = form_data['purpose'][0] if form_data['purpose'] else ""
-                        complexity_val = form_data['complexity'] if form_data['complexity'] != "(Select complexity)" else ""
-                        complexity_num = TASK_COMPLEXITY_MAP.get(complexity_val, None)
-                        workflow_impact_val = form_data['workflow_impact'] if form_data['workflow_impact'] != "(Select impact)" else ""
-                        workflow_impact_num = WORKFLOW_IMPACT_MAP.get(workflow_impact_val, None)
                         
                         is_valid, error_message = validate_form_submission(
                             form_data['name'], manager_val, ai_tool_val, purpose_val, form_data['result'], 
-                            complexity_val, form_data['satisfaction'], form_data['time_without_ai'], 
-                            workflow_impact_val, form_data['duration'], workflow_impact_num, complexity_num
+                            form_data['duration']
                         )
                         
                         if not is_valid:
@@ -478,8 +459,7 @@ with tab2:
                             # Update the entry
                             updated_entry = create_entry_dict(
                                 form_data['name'], manager_val, ai_tool_val, purpose_val, form_data['duration'], 
-                                complexity_num, form_data['satisfaction'], form_data['time_without_ai'], 
-                                workflow_impact_num, form_data['result'], form_data['notes']
+                                form_data['result'], form_data['notes']
                             )
                             # Preserve the original timestamp
                             updated_entry['Timestamp'] = original_entry['Timestamp']

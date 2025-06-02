@@ -5,6 +5,6 @@ This package provides a web application that allows organizations to track AI to
 and generate insights.
 """
 
-__version__ = "0.0.1-alpha.1"
+__version__ = "0.0.1-alpha.2"
 __author__ = "Suhail Khan"
 __description__ = "Streamlit-based application for tracking and analyzing AI tool usage within an organization"

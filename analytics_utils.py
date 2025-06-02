@@ -12,8 +12,8 @@ def prepare_dataframe(entries, workflow_impact_map=None, task_complexity_map=Non
     
     Args:
         entries: List of entry dictionaries
-        workflow_impact_map: Optional mapping for workflow impact reverse lookup
-        task_complexity_map: Optional mapping for task complexity reverse lookup
+        workflow_impact_map: Optional mapping for workflow impact reverse lookup (kept for backwards compatibility)
+        task_complexity_map: Optional mapping for task complexity reverse lookup (kept for backwards compatibility)
     
     Returns:
         Cleaned pandas DataFrame
@@ -22,14 +22,13 @@ def prepare_dataframe(entries, workflow_impact_map=None, task_complexity_map=Non
     if df.empty:
         return df
         
-    # Apply reverse mappings if provided
+    # Legacy field handling for backwards compatibility with old data
     if workflow_impact_map and 'Workflow Impact' in df.columns:
         df['Workflow Impact'] = df['Workflow Impact'].map(workflow_impact_map).fillna(df['Workflow Impact'])
     if task_complexity_map and 'Task Complexity' in df.columns:
         df['Task Complexity'] = df['Task Complexity'].map(task_complexity_map).fillna(df['Task Complexity'])
     
-    # Calculate time saved and ensure timestamp is datetime
-    df["Time Saved"] = df["Time Without AI"] - df["Duration"]
+    # Ensure timestamp is datetime
     df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce")
     
     return df
@@ -68,9 +67,7 @@ def calculate_basic_stats(df):
     
     stats = {
         'total_entries': len(df),
-        'avg_time_saved': df["Time Saved"].mean() if "Time Saved" in df.columns else 0,
         'avg_duration': df["Duration"].mean() if "Duration" in df.columns else 0,
-        'avg_satisfaction': df["Satisfaction"].mean() if "Satisfaction" in df.columns else 0,
     }
     
     # Tool-specific stats
@@ -125,62 +122,29 @@ def calculate_tool_effectiveness(df):
     if df.empty or "AI Tool" not in df.columns:
         return pd.DataFrame()
     
-    agg_dict = {}
-    if "Time Saved" in df.columns:
-        agg_dict["Time Saved"] = "mean"
-    if "Satisfaction" in df.columns:
-        agg_dict["Satisfaction"] = "mean"
-    if "Workflow Impact" in df.columns:
-        agg_dict["Workflow Impact"] = lambda x: x.value_counts().index[0] if not x.empty else None
-    
-    if not agg_dict:
-        return pd.DataFrame()
+    agg_dict = {
+        "Duration": ["mean", "count"]  # Average duration and task count
+    }
     
     tool_stats = df.groupby("AI Tool").agg(agg_dict).reset_index()
     
-    # Rename columns for clarity
-    rename_dict = {
-        "Time Saved": "Avg Time Saved",
-        "Satisfaction": "Avg Satisfaction",
-        "Workflow Impact": "Most Common Workflow Impact"
-    }
-    tool_stats.rename(columns=rename_dict, inplace=True)
+    # Flatten column names
+    tool_stats.columns = ["AI Tool", "Avg Duration", "# Tasks"]
     
     return tool_stats
 
 
 def calculate_complexity_analysis(df):
     """
-    Calculate task complexity analysis.
+    Calculate task complexity analysis (legacy function - returns empty for backwards compatibility).
     
     Args:
         df: pandas DataFrame with usage data
     
     Returns:
-        DataFrame with complexity analysis
+        Empty DataFrame (complexity analysis no longer supported)
     """
-    if df.empty or "Task Complexity" not in df.columns:
-        return pd.DataFrame()
-    
-    agg_dict = {}
-    if "Time Saved" in df.columns:
-        agg_dict["Time Saved"] = "mean"
-    if "Satisfaction" in df.columns:
-        agg_dict["Satisfaction"] = "mean"
-    
-    if not agg_dict:
-        return pd.DataFrame()
-    
-    complexity_stats = df.groupby("Task Complexity").agg(agg_dict).reset_index()
-    
-    # Rename columns for clarity
-    rename_dict = {
-        "Time Saved": "Avg Time Saved",
-        "Satisfaction": "Avg Satisfaction"
-    }
-    complexity_stats.rename(columns=rename_dict, inplace=True)
-    
-    return complexity_stats
+    return pd.DataFrame()
 
 
 def calculate_manager_insights(df):
@@ -196,21 +160,14 @@ def calculate_manager_insights(df):
     if df.empty or "Manager" not in df.columns:
         return pd.DataFrame()
     
-    agg_dict = {"Duration": "count"}  # Count of tasks
-    if "Time Saved" in df.columns:
-        agg_dict["Time Saved"] = "mean"
-    if "Satisfaction" in df.columns:
-        agg_dict["Satisfaction"] = "mean"
+    agg_dict = {
+        "Duration": ["count", "mean"]  # Count of tasks and average duration
+    }
     
     manager_stats = df.groupby("Manager").agg(agg_dict).reset_index()
     
-    # Rename columns for clarity
-    rename_dict = {
-        "Time Saved": "Avg Time Saved",
-        "Satisfaction": "Avg Satisfaction",
-        "Duration": "# Tasks"
-    }
-    manager_stats.rename(columns=rename_dict, inplace=True)
+    # Flatten column names
+    manager_stats.columns = ["Manager", "# Tasks", "Avg Duration"]
     
     return manager_stats
 
@@ -228,23 +185,13 @@ def calculate_purpose_insights(df):
     if df.empty or "Purpose" not in df.columns:
         return pd.DataFrame()
     
-    agg_dict = {"Duration": "count"}  # Count of tasks
-    if "Time Saved" in df.columns:
-        agg_dict["Time Saved"] = "mean"
-    if "Satisfaction" in df.columns:
-        agg_dict["Satisfaction"] = "mean"
-    if "Workflow Impact" in df.columns:
-        agg_dict["Workflow Impact"] = lambda x: x.value_counts().index[0] if not x.empty else None
+    agg_dict = {
+        "Duration": ["count", "mean"]  # Count of tasks and average duration
+    }
     
     purpose_stats = df.groupby("Purpose").agg(agg_dict).reset_index()
     
-    # Rename columns for clarity
-    rename_dict = {
-        "Time Saved": "Avg Time Saved",
-        "Satisfaction": "Avg Satisfaction",
-        "Workflow Impact": "Most Common Workflow Impact",
-        "Duration": "# Tasks"
-    }
-    purpose_stats.rename(columns=rename_dict, inplace=True)
+    # Flatten column names
+    purpose_stats.columns = ["Purpose", "# Tasks", "Avg Duration"]
     
     return purpose_stats

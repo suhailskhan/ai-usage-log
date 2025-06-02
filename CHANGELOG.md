@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.0.1-alpha.2] - 2025-06-02
+
+### Added
+- JWT-based authentication system with user login/logout functionality
+  - Protected edit and delete operations behind authentication
+- Personal "My Statistics" view for logged-in users to see their own usage data
+- Authentication middleware for secure session management
+- Entry management features in Raw Data tab:
+  - Inline editing of existing entries with pre-filled forms
+  - Entry duplication functionality for quick similar submissions
+  - Entry deletion with confirmation dialogs
+- Row selection capability in Raw Data tab
+- Infrastructure destroy workflow for automated cleanup
+- OpenTofu support as alternative to Terraform
+- Environment-aware JWT configuration for deployment security
+- AWS Secrets Manager integration for JWT secrets
+
+### Enhanced
+- Code organization with new utility modules:
+  - `analytics_utils.py` for shared data processing functions
+  - `form_utils.py` for survey form-related functionality
+  - `visualization_utils.py` for data visualization components
+  - `auth_middleware.py` for authentication handling
+- Tab structure and navigation:
+  - Renamed tabs for better clarity
+  - "Past Submissions" tab now requires authentication
+- Form validation and error handling across all features
+- Seed scripts now automatically create data directory if missing
+- Eliminated code duplication through shared utilities (~200 lines reduced)
+- Import consolidation and code organization
+
+### Security
+- Secure cookie settings for production deployment
+- JWT audience configuration with environment awareness
+- Environment variable validation for deployed environments
+
+### Infrastructure
+- Moved from `terraform/` to `infra/` directory structure
+- Added OpenTofu configuration files alongside Terraform
+- Enhanced GitHub Actions workflow with OpenTofu support
+- Infrastructure destroy automation with safety validations
+
+### Dependencies
+- Added PyJWT for JSON Web Token authentication
+
 ## [v0.0.1-alpha.1] - 2025-05-23
 
 ### Added
@@ -55,4 +100,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SQLite database/CSV
 - Environment variable configuration system
 
+[v0.0.1-alpha.2]: https://github.com/suhailskhan/ai-usage-log/releases/tag/v0.0.1-alpha.2
 [v0.0.1-alpha.1]: https://github.com/suhailskhan/ai-usage-log/releases/tag/v0.0.1-alpha.1

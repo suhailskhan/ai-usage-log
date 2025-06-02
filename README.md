@@ -16,13 +16,10 @@ The application provides the following analytics features:
 
 - **Purpose Distribution:** Visualize the distribution of AI tool usage purposes using pie charts.
 - **Duration Analysis:** Analyze the total and average duration of tasks by AI tool.
-- **Time Saved Analysis:** Compare the time taken with and without AI assistance, including total and average time saved.
-- **Tool Effectiveness Benchmarking:** Evaluate AI tools based on average time saved, satisfaction, and workflow impact.
-- **Complexity vs Impact:** Understand the relationship between task complexity and workflow impact.
-- **Satisfaction vs Efficiency:** Explore the correlation between user satisfaction and time saved.
-- **Manager/Team Insights:** Gain insights into team performance, including average time saved and satisfaction by manager.
-- **Purpose-based Use Cases:** Analyze average time saved, satisfaction, and workflow impact for different purposes.
-- **Trend & Seasonality Analysis:** Identify trends in AI tool usage over time, including daily and weekly patterns.
+- **Tool Effectiveness Benchmarking:** Evaluate AI tools based on average duration and task count.
+- **Manager/Team Insights:** Gain insights into team performance, including task count and average duration by manager.
+- **Purpose-based Use Cases:** Analyze task count and average duration for different purposes.
+- **Trend & Seasonality Analysis:** Identify trends in AI tool usage over time, including daily submissions and weekly duration patterns.
 
 ## Usage
 

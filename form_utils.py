@@ -7,7 +7,7 @@ for the AI usage tracking application.
 import datetime
 import streamlit as st
 
-# Workflow Impact mapping
+# Legacy mappings - kept for backwards compatibility but no longer used
 WORKFLOW_IMPACT_MAP = {
     "Little to none": 1,
     "Minor improvement": 2,
@@ -17,7 +17,6 @@ WORKFLOW_IMPACT_MAP = {
 }
 REVERSE_WORKFLOW_IMPACT_MAP = {v: k for k, v in WORKFLOW_IMPACT_MAP.items()}
 
-# Task Complexity mapping
 TASK_COMPLEXITY_MAP = {
     "Easy": 1,
     "Medium": 2,
@@ -25,9 +24,7 @@ TASK_COMPLEXITY_MAP = {
 }
 REVERSE_TASK_COMPLEXITY_MAP = {v: k for k, v in TASK_COMPLEXITY_MAP.items()}
 
-def validate_form_submission(name, manager_val, ai_tool_val, purpose_val, result, 
-                           complexity_val, satisfaction, time_without_ai, 
-                           workflow_impact_val, duration, workflow_impact_num, complexity_num):
+def validate_form_submission(name, manager_val, ai_tool_val, purpose_val, result, duration):
     """
     Validate form submission data.
     
@@ -39,27 +36,18 @@ def validate_form_submission(name, manager_val, ai_tool_val, purpose_val, result
         manager_val.strip(),
         ai_tool_val.strip(),
         purpose_val.strip(),
-        result.strip(),
-        complexity_val.strip(),
-        str(satisfaction).strip(),
-        str(time_without_ai).strip(),
-        workflow_impact_val.strip()
+        result.strip()
     ]
     
     if not all(required_fields):
         return False, "Please fill in all required fields."
     
-    if duration <= 0 or time_without_ai <= 0:
-        return False, "Duration and time without AI must be greater than 0."
-    
-    if workflow_impact_num is None or complexity_num is None:
-        return False, "Please select valid options for complexity and workflow impact."
+    if duration <= 0:
+        return False, "Duration must be greater than 0."
     
     return True, ""
 
-def create_entry_dict(name, manager_val, ai_tool_val, purpose_val, duration, 
-                     complexity_num, satisfaction, time_without_ai, 
-                     workflow_impact_num, result, notes):
+def create_entry_dict(name, manager_val, ai_tool_val, purpose_val, duration, result, notes):
     """Create entry dictionary from form data."""
     return {
         'Name': name,
@@ -67,10 +55,6 @@ def create_entry_dict(name, manager_val, ai_tool_val, purpose_val, duration,
         'AI Tool': ai_tool_val,
         'Purpose': purpose_val,
         'Duration': duration,
-        'Task Complexity': complexity_num,
-        "Satisfaction": satisfaction,
-        "Time Without AI": time_without_ai,
-        "Workflow Impact": workflow_impact_num,
         'Result/Outcome': result,
         'Notes': notes,
         'Timestamp': datetime.datetime.now().isoformat()
@@ -120,33 +104,6 @@ def render_usage_form(form_key, manager_choices, tool_choices, purpose_choices,
             accept_new_options=True,
         )
         duration = st.number_input("Duration (minutes)", min_value=0, value=default_data.get('duration', 0))
-        complexity_options = ["(Select complexity)", "Easy", "Medium", "Hard"]
-        complexity_default_index = 0
-        if default_data.get('complexity') in complexity_options:
-            complexity_default_index = complexity_options.index(default_data.get('complexity'))
-        complexity = st.selectbox(
-            "What was the complexity level of the task?",
-            complexity_options,
-            index=complexity_default_index
-        )
-        satisfaction = st.slider("Rate your confidence in the tools's final output.", 1, 5, default_data.get('satisfaction', 3))
-        time_without_ai = st.number_input("About how much time might the task have taken you to complete without AI assistance? (minutes)", min_value=0, value=default_data.get('time_without_ai', 0))
-        workflow_impact_options = [
-            "(Select impact)",
-            "Little to none",
-            "Minor improvement",
-            "Moderate improvement",
-            "Considerable improvement",
-            "Significant improvement"
-        ]
-        workflow_impact_default_index = 0
-        if default_data.get('workflow_impact') in workflow_impact_options:
-            workflow_impact_default_index = workflow_impact_options.index(default_data.get('workflow_impact'))
-        workflow_impact = st.selectbox(
-            "Estimate the impact that this use of AI tools has had on your overall workflow.",
-            workflow_impact_options,
-            index=workflow_impact_default_index
-        )
         result = st.text_input("Describe the result/outcome.", value=default_data.get('result', ''))
         notes = st.text_area("Additional notes (optional):", value=default_data.get('notes', ''))
         
@@ -168,10 +125,6 @@ def render_usage_form(form_key, manager_choices, tool_choices, purpose_choices,
         'ai_tool': ai_tool,
         'purpose': purpose,
         'duration': duration,
-        'complexity': complexity,
-        'satisfaction': satisfaction,
-        'time_without_ai': time_without_ai,
-        'workflow_impact': workflow_impact,
         'result': result,
         'notes': notes
     }

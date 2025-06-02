@@ -27,25 +27,12 @@ MANAGERS = [
     "Diana Prince", 
     "Edward Scissorhands"
 ]
-TASK_COMPLEXITY_MAP = {
-    "Easy": 1,
-    "Medium": 2,
-    "Hard": 3
-}
-WORKFLOW_IMPACT_MAP = {
-    "Little to none": 1,
-    "Minor improvement": 2,
-    "Moderate improvement": 3,
-    "Considerable improvement": 4,
-    "Significant improvement": 5
-}
 
 fake = Faker()
 
 CSV_FILE = 'data/ai_usage_log.csv'
 FIELDNAMES = [
-    'Name', 'Manager', 'AI_Tool', 'Purpose', 'Duration', 'Task_Complexity', 'Satisfaction',
-    'Time_Without_AI', 'Workflow_Impact', 'Result_Outcome', 'Notes', 'Timestamp'
+    'Name', 'Manager', 'AI_Tool', 'Purpose', 'Duration', 'Result_Outcome', 'Notes', 'Timestamp'
 ]
 
 def ensure_data_directory():
@@ -66,10 +53,6 @@ def seed_csv(num_rows=100):
             ai_tool = random.choice(AI_TOOLS)
             purpose = random.choice(PURPOSES)
             duration = random.randint(5, 120)
-            task_complexity_key = random.choice(list(TASK_COMPLEXITY_MAP.keys()))
-            satisfaction = random.randint(1, 5)
-            time_without_ai = duration + random.randint(10, 240)
-            workflow_impact_key = random.choice(list(WORKFLOW_IMPACT_MAP.keys()))
             result_outcome = random.choice(RESULT_OUTCOMES)
             notes = random.choice(NOTES_SAMPLES) + " " + fake.sentence(nb_words=10)
             days_offset = random.randint(0, 30)
@@ -84,10 +67,6 @@ def seed_csv(num_rows=100):
                 'AI_Tool': ai_tool,
                 'Purpose': purpose,
                 'Duration': duration,
-                'Task_Complexity': task_complexity_key,
-                'Satisfaction': satisfaction,
-                'Time_Without_AI': time_without_ai,
-                'Workflow_Impact': workflow_impact_key,
                 'Result_Outcome': result_outcome,
                 'Notes': notes,
                 'Timestamp': timestamp_str
