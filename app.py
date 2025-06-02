@@ -31,7 +31,8 @@ from form_utils import (
 from storage import get_storage
 from visualization_utils import (
     render_all_statistics,
-    render_manager_statistics
+    render_manager_statistics,
+    render_user_statistics
 )
 
 load_dotenv()
@@ -228,9 +229,17 @@ with tab2:
         st.write("No data available for visualization.")
     else:
         # Pills for statistics views
+        auth_context = AuthContext.from_session_state()
+        
+        # Build stats options based on authentication status
         stats_option_map = {
             0: ":material/filter_alt: By Manager"
         }
+        
+        # Add "My Statistics" option if user is authenticated
+        if auth_context.is_authenticated:
+            stats_option_map[1] = f":material/person: My Statistics"
+        
         stats_selection = st.pills(
             "Statistics View",
             options=stats_option_map.keys(),
@@ -261,6 +270,20 @@ with tab2:
                         st.write("No data available for visualization.")
                     else:
                         render_manager_statistics(filtered_df, selected_manager)
+        elif stats_selection == 1:
+            # My Statistics option - only available if authenticated
+            if auth_context.is_authenticated:
+                st.toast(f"Showing your personal statistics.")
+                st.session_state['last_stats_selection'] = 1
+                user_filtered_df = df[df['Name'] == auth_context.username]
+                if user_filtered_df.empty:
+                    st.info(f"No entries found for {auth_context.username}. Submit some surveys to see your personal statistics!")
+                else:
+                    render_user_statistics(user_filtered_df, auth_context.username)
+            else:
+                # This shouldn't happen since the pill should only be shown when authenticated
+                st.error("Authentication required to view personal statistics.")
+                st.session_state['last_stats_selection'] = None
 
 with tab3:
     # Show duplicate toast if flag is set

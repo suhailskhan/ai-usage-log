@@ -131,3 +131,15 @@ def render_manager_statistics(filtered_df, manager_name):
     create_complexity_vs_impact_table(filtered_df)
     create_satisfaction_vs_efficiency_chart(filtered_df, title_prefix)
     create_trend_analysis_charts(filtered_df, title_prefix)
+
+
+def render_user_statistics(filtered_df, username):
+    """Render statistics filtered by user"""
+    title_prefix = f"{username}: "
+    create_purpose_distribution_chart(filtered_df)
+    create_heatmap_chart(filtered_df, title_prefix)
+    create_duration_by_tool_chart(filtered_df)
+    create_tool_effectiveness_table(filtered_df)
+    create_complexity_vs_impact_table(filtered_df)
+    create_satisfaction_vs_efficiency_chart(filtered_df, title_prefix)
+    create_trend_analysis_charts(filtered_df, title_prefix)
