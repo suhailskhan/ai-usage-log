@@ -90,16 +90,17 @@ if __name__ == '__main__':
     ensure_data_directory()
     conn = create_connection(DB_FILE)
     if conn is not None:
-        # Ensure table exists with simplified schema (backwards compatible)
+        # Ensure table exists with simplified schema
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS entries (
             Name TEXT, Manager TEXT, AI_Tool TEXT, Purpose TEXT, Duration INTEGER, 
-            Task_Complexity TEXT, Satisfaction INTEGER, Time_Without_AI INTEGER, Workflow_Impact TEXT, 
             Result_Outcome TEXT, Notes TEXT, Timestamp TEXT
         )''')
         
-        # Add new columns if missing (for legacy tables)
+        # Add new columns if missing (for legacy tables that might have old schema)
         cols = [col[1] for col in c.execute("PRAGMA table_info(entries)").fetchall()]
+        
+        # Keep legacy columns for backwards compatibility but don't populate them in new entries
         if 'Task_Complexity' not in cols:
             c.execute("ALTER TABLE entries ADD COLUMN Task_Complexity TEXT")
         if 'Satisfaction' not in cols:
@@ -108,6 +109,8 @@ if __name__ == '__main__':
             c.execute("ALTER TABLE entries ADD COLUMN Time_Without_AI INTEGER")
         if 'Workflow_Impact' not in cols:
             c.execute("ALTER TABLE entries ADD COLUMN Workflow_Impact TEXT")
+        if 'Result_Outcome' not in cols:
+            c.execute("ALTER TABLE entries ADD COLUMN Result_Outcome TEXT")
         if 'Timestamp' not in cols:
             c.execute("ALTER TABLE entries ADD COLUMN Timestamp TEXT")
         conn.commit()
