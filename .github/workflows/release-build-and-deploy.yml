@@ -82,12 +82,12 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=ref,event=branch
-            type=sha
-            type=raw,value=latest
+            type=semver,pattern={{version}},priority=1000
+            type=semver,pattern={{major}}.{{minor}},priority=900
+            type=semver,pattern={{major}},priority=800
+            type=ref,event=branch,priority=700
+            type=raw,value=latest,priority=600
+            type=sha,priority=500
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
